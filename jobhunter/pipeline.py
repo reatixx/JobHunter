@@ -153,7 +153,7 @@ def region_ok(location: str, settings: dict) -> bool:
 
 # Management and senior roles: for a junior profile, don't spend model calls on them (auto_skip_senior).
 _SENIOR = re.compile(
-    r"\b(head|lead|leader|l[íi]der|manager|director|directora|senior|sr\.?|jefe|jefa|responsable|principal|"
+    r"\b(head|lead|leader|l[íi]der|manager|director|directora|s[eé]nior|sr\.?|jefe|jefa|responsable|principal|"
     r"staff|architect|arquitect[oa]|vp|cto|cio|chief|руководител\w*|ведущ\w*|старш\w*|тимлид|лид)\b", re.I)
 
 
@@ -178,6 +178,23 @@ def license_required(text: str) -> str:
     return ""
 
 
+# mandatory Basque (auto_skip_basque); «valorable / se valorará / deseable» is not filtered out
+# «Basque Country / Basque Research…» is a name, not the language: a capitalised word follows it
+_BASQUE = re.compile(r"euskera|euskara|basque(?!\s+(?-i:[A-Z]))|баскск\w*|perfil ling[üu][íi]stico", re.I)
+_BASQUE_OPTIONAL = re.compile(r"valor|balora|deseable|plus|preferib|se tendr[aá] en cuenta|nice to have|bonus|ideal|"
+                              r"no (?:es )?(?:imprescindible|obligatori)|opcional|aprender", re.I)
+
+
+def basque_required(text: str) -> str:
+    for m in _BASQUE.finditer(text):
+        # the sentence (or list item) that mentions Basque
+        start = max(text.rfind(c, 0, m.start()) for c in ".\n•;") + 1
+        ends = [i for i in (text.find(c, m.end()) for c in ".\n•;") if i != -1]
+        sent = text[start:min(ends) if ends else len(text)]
+        if not _BASQUE_OPTIONAL.search(sent):
+            return m.group(0)
+    return ""
+
 
 def filter_reason(job: dict, settings: dict) -> str:
     """Why the job should be filtered out right away, without a model call. Empty string = keep."""
@@ -188,6 +205,8 @@ def filter_reason(job: dict, settings: dict) -> str:
         return tr("unpaid («{0}»)", m.group(0))
     if settings.get("auto_skip_license", True) and (m := license_required(text)):
         return tr("driving licence required («{0}»)", m)
+    if settings.get("auto_skip_basque", True) and (m := basque_required(text)):
+        return tr("Basque required («{0}»)", m)
     if not region_ok(job.get("location") or "", settings):
         return tr("not open to candidates in Spain ({0})", job['location'].removeprefix('Remoto:').strip()[:60])
     if settings.get("skip_ru_by", True) and (m := ru_by_marker(job)):
@@ -255,6 +274,22 @@ def step_filter(settings: dict, ids: list[str]) -> int:
         job = db.get_job(jid)
         if job and (why := filter_reason(job, settings)):
             db.update_job(jid, status="hidden", filtered=why)
+            hidden += 1
+            log.info("Filtered out: %s — %s (%s)", job["title"], job["company"], why)
+    return hidden
+
+
+def step_hide_senior(settings: dict) -> int:
+    """Hides senior/management roles among all «new» jobs — both old ones and ones found by manual search.
+    Jobs the user restored from the filtered-out list (kv 'kept_ids') are left alone."""
+    if not settings.get("auto_skip_senior", True):
+        return 0
+    kept = set(db.kv_get("kept_ids") or [])
+    hidden = 0
+    for job in db.list_jobs(statuses=["new"]):
+        if job["id"] not in kept and (m := _SENIOR.search(job.get("title") or "")):
+            why = tr("management/senior role («{0}»)", m.group(0))
+            db.update_job(job["id"], status="hidden", filtered=why)
             hidden += 1
             log.info("Filtered out: %s — %s (%s)", job["title"], job["company"], why)
     return hidden
@@ -401,6 +436,7 @@ def run(skip_search: bool = False, max_prepare: int | None = None) -> dict:
             ids = step_search(settings)
             summary["new"] = len(ids)
             summary["filtered"] = step_filter(settings, ids)
+        summary["filtered"] += step_hide_senior(settings)
         summary["analyzed"] = step_analyze(settings, resume_text, profile)
         limit = int(settings["auto_max_prepare"] if max_prepare is None else max_prepare)
         summary["prepared"] = step_prepare(settings, resume_text, profile, limit)

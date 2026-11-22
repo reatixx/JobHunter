@@ -56,18 +56,20 @@ def _claude(settings: dict, system: str, user: str, schema: dict | None, effort:
     output_config: dict = {"effort": effort}
     if schema:
         output_config["format"] = {"type": "json_schema", "schema": schema}
+    model = settings["claude_model"]
+    # if the model refuses, the request is retried on a fallback model;
+    # Haiku has no server-side fallback, so it is not sent for Haiku
+    extra = {} if "haiku" in model else {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
     try:
         client = anthropic.Anthropic()
         # Streaming mode: long responses don't hit HTTP timeouts
         with client.beta.messages.stream(
-            model=settings["claude_model"],
+            model=model,
             max_tokens=32000,
             system=system,
             messages=[{"role": "user", "content": user}],
             output_config=output_config,
-            # if the model refuses, the request is retried automatically on a fallback model
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
+            **extra,
         ) as stream:
             resp = stream.get_final_message()
     except anthropic.AuthenticationError:

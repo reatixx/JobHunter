@@ -362,5 +362,8 @@
  "🤖 Autopilot": "🤖 Автопилот",
  "🤷 Don't know / skip": "🤷 Не знаю / пропустить",
  "🤷 Skipped": "🤷 Пропущено",
- "🧾 Fact base": "🧾 База фактов"
+ "🧾 Fact base": "🧾 База фактов",
+ " (filtered out: {0})": " (отсеяно: {0})",
+ "Basque required («{0}»)": "нужна эускера («{0}»)",
+ "Filter out jobs that require Basque (euskera)": "Отсеивать вакансии с обязательной эускерой"
 }

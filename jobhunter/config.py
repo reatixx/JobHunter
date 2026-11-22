@@ -56,7 +56,8 @@ DEFAULTS: dict = {
     "auto_max_analyze": 60,           # max jobs scored by Ollama per run
     "auto_remote_only": False,        # keep remote jobs only
     "auto_skip_english_required": True,  # filter out jobs that require high English
-    "auto_skip_english_ads": True,    # filter out job ads written entirely in English
+    "auto_skip_basque": True,         # filter out jobs that require Basque («valorable» stays)
+    "auto_skip_english_ads": True,   # filter out job ads written entirely in English
     "auto_block_words": "",           # comma-separated; words in the job text that filter it out
     "auto_times": "09:00,15:00",      # when to run on schedule
     # international remote: separate queries (in English — these boards are English-speaking), no city

@@ -298,8 +298,11 @@ with tab_search:
         status = st.status(tr("Searching for jobs…"), expanded=True)
         jobs, report = collect(settings, keywords, location, chosen,
                                on_progress=lambda n, m: status.write(f"**{SOURCE_TITLES[n]}**: {m}"))
-        added = db.save_jobs(jobs)
-        status.update(label=tr("Done: {0} found, {1} new", len(jobs), added), state="complete")
+        new_ids = db.save_jobs_ids(jobs)
+        added = len(new_ids)
+        hidden = pipeline.step_filter(settings, new_ids)  # same filters as the autopilot (relocation, senior, licence…)
+        status.update(label=tr("Done: {0} found, {1} new", len(jobs), added) +
+                      (tr(" (filtered out: {0})", hidden) if hidden else ""), state="complete")
         st.session_state["_run_analysis"] = auto_analyze and added > 0
 
     with st.expander(tr("➕ Add a job manually (link or text)")):
@@ -469,6 +472,8 @@ with tab_auto:
                                                       int(settings["auto_max_analyze"]))
         settings["auto_skip_english_required"] = st.checkbox(
             tr("Filter out jobs that require high English (B2+, C1, fluent)"), settings["auto_skip_english_required"])
+        settings["auto_skip_basque"] = st.checkbox(tr("Filter out jobs that require Basque (euskera)"),
+                                                   settings.get("auto_skip_basque", True))
         settings["auto_skip_english_ads"] = st.checkbox(tr("Filter out job ads written in English"),
                                                         settings["auto_skip_english_ads"])
         settings["auto_remote_only"] = st.checkbox(tr("Remote only"), settings["auto_remote_only"])
@@ -557,6 +562,7 @@ with tab_auto:
                 f1.markdown(f"[{job['title']}]({job['url']}) — {job['company'] or '?'} · _{job['filtered']}_")
                 if f2.button(tr("Restore"), key=f"fr_{job['id']}"):
                     db.update_job(job["id"], status="new", filtered=None)
+                    db.kv_set("kept_ids", sorted(set(db.kv_get("kept_ids") or []) | {job["id"]}))
                     st.rerun()
 
     if pipeline.LOG_PATH.exists():
