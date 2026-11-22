@@ -1,7 +1,7 @@
-"""LinkedIn — публичная гостевая выдача вакансий (без логина, ваш аккаунт не используется).
+"""LinkedIn — public guest job search (no login, your account is not used).
 
-Официального API для поиска вакансий нет, поэтому это парсинг страниц: делаем мало запросов
-и с паузами. Если LinkedIn начнёт отвечать 429/999 — источник просто вернёт ошибку.
+There is no official job search API, so this parses pages: few requests,
+with pauses. If LinkedIn starts answering 429/999, the source just returns an error.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ class LinkedInSource(Source):
 
     def search(self, keywords, location, limit):
         days = int(self.settings.get("linkedin_days", 7) or 0)
-        # «remote: European Union» — только удалённые вакансии (фильтр LinkedIn f_WT=2) в этом регионе
+        # "remote: European Union" — remote jobs only (LinkedIn filter f_WT=2) in that region
         remote = bool(location) and location.lower().startswith("remote:")
         if remote:
             location = location.split(":", 1)[1].strip()
@@ -55,7 +55,7 @@ class LinkedInSource(Source):
         for j in jobs:
             try:
                 r = self.session.get(DETAIL.format(id=j.external_id), timeout=30)
-                if r.status_code in (429, 999):  # одна повторная попытка после паузы
+                if r.status_code in (429, 999):  # one retry after a pause
                     self.polite_pause(8, 12)
                     r = self.session.get(DETAIL.format(id=j.external_id), timeout=30)
                 self._check(r)
@@ -68,7 +68,7 @@ class LinkedInSource(Source):
                 ]
                 j.description = "\n".join(criteria) + "\n\n" + html_to_text(str(desc) if desc else "")
             except SourceError:
-                break  # упёрлись в лимит — оставшиеся без описания
+                break  # hit the rate limit — the rest stay without a description
             except Exception:
                 pass
             self.polite_pause(1.0, 2.5)

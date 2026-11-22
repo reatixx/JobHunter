@@ -1,10 +1,10 @@
-"""Telegram-бот JobHunter: уведомления о готовых откликах и кнопки «Отправил / Пропустить / Поправить письмо».
+"""JobHunter Telegram bot: notifications about prepared applications with "Sent / Skip / Edit letter" buttons.
 
-Слушатель кнопок и команд:  .venv\\Scripts\\pythonw.exe -m jobhunter.telegram_bot
-Уведомления после прогона автопилота шлёт pipeline (notify_after_run) — для них слушатель не нужен.
+Button and command listener:  .venv\\Scripts\\pythonw.exe -m jobhunter.telegram_bot
+Post-run notifications are sent by the pipeline (notify_after_run) — no listener needed for those.
 
-Бот привязывается к первому чату, который написал /start; сообщения из других чатов игнорируются.
-Зависимостей нет: Bot API через requests.
+The bot binds to the first chat that sends /start; messages from other chats are ignored.
+No dependencies: Bot API via requests.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from .config import DATA_DIR, ROOT, get_secret, load_settings, save_settings
 
 log = logging.getLogger("jobhunter.telegram")
 LOG_PATH = DATA_DIR / "telegram.log"
-LOCK_PORT = 47831  # занятый порт = бот уже запущен (простой мьютекс без зависимостей)
+LOCK_PORT = 47831  # port already taken = bot already running (simple dependency-free mutex)
 
 
 class TelegramError(Exception):
@@ -66,7 +66,7 @@ def send_file(path: Path, caption: str = "", chat_id: int | None = None):
 e = html.escape
 
 
-# --- карточка отклика -------------------------------------------------------------
+# --- application card -------------------------------------------------------------
 def buttons(rid: int) -> dict:
     return {"inline_keyboard": [
         [{"text": "✅ Отправил", "callback_data": f"ok:{rid}"},
@@ -106,7 +106,7 @@ def send_letter(job: dict, chat_id: int | None = None) -> None:
     send(f"✉️ <b>Письмо</b> (нажми, чтобы скопировать):\n<code>{e(letter)}</code>", chat_id, buttons(job["rid"]))
 
 
-# --- уточняющие вопросы для базы фактов -----------------------------------------------
+# --- fact-base follow-up questions -----------------------------------------------
 def send_questions(only_new: bool = True) -> int:
     qs = [q for q in facts.open_questions() if not (only_new and q.get("tg_msg"))]
     if qs:
@@ -121,7 +121,7 @@ def send_questions(only_new: bool = True) -> int:
 
 
 def rebuild_masters_async(chat_id: int | None = None) -> None:
-    """Пересобирает мастер-резюме обоих треков в фоне (это ~1-2 мин запросов к Claude) и шлёт PDF."""
+    """Rebuilds the master resumes for both tracks in the background (~1-2 min of Claude calls) and sends the PDFs."""
     def work():
         settings = load_settings()
         for track, t in facts.TRACKS.items():
@@ -136,7 +136,7 @@ def rebuild_masters_async(chat_id: int | None = None) -> None:
 
 
 def notify_after_run(summary: dict) -> None:
-    """Вызывается автопилотом в конце прогона. Шлёт новые готовые отклики и новые вопросы; если нечего — молчит."""
+    """Called by the autopilot at the end of a run. Sends new prepared applications and new questions; silent if there's nothing."""
     if not configured():
         return
     fresh = [j for j in db.list_jobs(statuses=["ready"]) if not j["notified_at"]]
@@ -156,7 +156,7 @@ def notify_after_run(summary: dict) -> None:
     send_questions()
 
 
-# --- обработка команд и кнопок ------------------------------------------------------
+# --- command and button handling ------------------------------------------------------
 HELP = ("Я присылаю отклики, которые подготовил автопилот JobHunter.\n\n"
         "/ready — показать все готовые к отправке\n"
         "/questions — открытые вопросы для резюме\n"
@@ -188,7 +188,7 @@ def handle_message(msg: dict) -> None:
             send_questions()
         return
     if chat_id != owner:
-        return  # чужие чаты игнорируем
+        return  # ignore other chats
 
     reply_to = (msg.get("reply_to_message") or {}).get("message_id")
     if reply_to and text and (q := facts.by_tg_message(reply_to)):
@@ -248,11 +248,11 @@ def handle_message(msg: dict) -> None:
         send("Не понял. " + HELP)
 
 
-CLAUDE_MEMORY = Path(load_settings().get("claude_memory_dir") or r"D:\ClaudeMemory")  # необязательная память Claude
+CLAUDE_MEMORY = Path(load_settings().get("claude_memory_dir") or r"D:\ClaudeMemory")  # optional Claude long-term memory
 
 
 def to_claude(text: str, reply_to: int | None) -> bool:
-    """Свободный текст — это сообщение пользователя для Claude: кладём в долговременную память Claude."""
+    """Free text is a message from the user to Claude: store it in Claude's long-term memory."""
     try:
         if str(CLAUDE_MEMORY) not in sys.path:
             sys.path.insert(0, str(CLAUDE_MEMORY))
@@ -330,7 +330,7 @@ def handle_callback(cb: dict) -> None:
              "(например: короче, упомянуть переезд, более формально).")
         return
     call("answerCallbackQuery", callback_query_id=cb["id"], text=note)
-    # заменяем кнопки под письмом на итог, чтобы было видно, что уже сделано
+    # replace the buttons under the letter with the outcome, so it's clear what was done
     call("editMessageReplyMarkup", chat_id=owner, message_id=msg["message_id"],
          reply_markup={"inline_keyboard": [[{"text": note, "callback_data": "noop"}]]})
 

@@ -1,8 +1,8 @@
-"""База фактов (эталон) о кандидате и уточняющие вопросы агентов.
+"""Fact base (source of truth) about the candidate, and the agents' follow-up questions.
 
-Резюме, письма и оценка вакансий строятся по базе фактов, а не по старому резюме:
-так агенты не разносят по откликам то, чего не было. Пункты с пометкой «УТОЧНИТЬ»
-агенты не используют, а задают по ним вопросы (в Telegram и во вкладке «База фактов»).
+Resumes, letters and job scoring are built from the fact base, not from the old resume,
+so the agents don't spread things that never happened. Items marked "TO CLARIFY"
+are not used; the agents ask about them instead (in Telegram and in the "Fact base" tab).
 """
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def job_track(job: dict) -> str:
     return "frontend" if _FRONTEND.search(job.get("title") or "") else "support"
 
 
-# --- база фактов -------------------------------------------------------------------
+# --- fact base -------------------------------------------------------------------
 def get_facts() -> str:
     return (db.kv_get(FACTS_KEY) or {}).get("text", "")
 
@@ -55,7 +55,7 @@ def set_facts(text: str) -> None:
 
 
 def source_text(fallback_resume: str = "") -> str:
-    """Текст, по которому агенты пишут резюме и письма: база фактов + ответы на вопросы."""
+    """Text the agents use for resumes and letters: fact base + answers to questions."""
     facts = get_facts().strip()
     if not facts:
         return fallback_resume
@@ -66,7 +66,7 @@ def source_text(fallback_resume: str = "") -> str:
     return facts
 
 
-# --- вопросы ---------------------------------------------------------------------------
+# --- questions ---------------------------------------------------------------------------
 def get_qa() -> list[dict]:
     return db.kv_get(QA_KEY) or []
 
@@ -85,7 +85,7 @@ def _similar(a: str, b: str) -> bool:
 
 
 def add_questions(questions: list[str], context: str = "") -> list[dict]:
-    """Добавляет новые вопросы, пропуская похожие на уже заданные (в т.ч. отвеченные). Возвращает добавленные."""
+    """Adds new questions, skipping ones similar to those already asked (including answered). Returns the added ones."""
     qa = get_qa()
     open_n = sum(q["status"] == "open" for q in qa)
     added = []
@@ -129,9 +129,9 @@ def by_tg_message(message_id: int) -> dict | None:
     return next((q for q in get_qa() if q.get("tg_msg") == message_id), None)
 
 
-# --- мастер-резюме по трекам --------------------------------------------------------------
+# --- master resumes per track --------------------------------------------------------------
 def track_ats(settings: dict, track: str, lang: str) -> dict:
-    """ATS-профиль трека: по вакансиям этого трека в базе, иначе по знаниям рынка. Кэшируется."""
+    """Track ATS profile: from this track's jobs in the database, otherwise from market knowledge. Cached."""
     from .agents import AtsAuditor
     key = f"ats_{track}_{lang}"
     if cached := db.kv_get(key):
@@ -144,7 +144,7 @@ def track_ats(settings: dict, track: str, lang: str) -> dict:
 
 
 def build_master(settings: dict, track: str) -> dict:
-    """Полностью переписывает резюме из базы фактов под трек. Возвращает ResumeRewrite + путь к PDF."""
+    """Fully rewrites the resume from the fact base for a track. Returns ResumeRewrite + PDF path."""
     from .agents import ResumeWriter, resume_language
     from .ats import keyword_coverage
     from .render import to_pdf

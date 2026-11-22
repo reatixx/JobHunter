@@ -1,4 +1,4 @@
-"""JobHunter — поиск вакансий в Испании с ИИ-агентами. Запуск: streamlit run app.py"""
+"""JobHunter — job search in Spain with AI agents. Run: streamlit run app.py"""
 from __future__ import annotations
 
 import os
@@ -38,7 +38,7 @@ def bullet(items):
     return "\n".join(f"- {x}" for x in items) if items else "_—_"
 
 
-# ---------- Боковая панель ----------
+# ---------- Sidebar ----------
 with st.sidebar:
     st.title("💼 JobHunter")
     s = db.stats()
@@ -60,14 +60,14 @@ with st.sidebar:
 tab_resume, tab_facts, tab_search, tab_jobs, tab_auto, tab_settings = st.tabs(
     ["📄 Резюме", "🧾 База фактов", "🔎 Поиск", "📋 Вакансии", "🤖 Автопилот", "⚙️ Настройки"])
 
-# ---------- Резюме ----------
+# ---------- Resume ----------
 with tab_resume:
     st.subheader("Резюме")
     up = st.file_uploader("Загрузите резюме (PDF, DOCX или TXT)", type=["pdf", "docx", "txt", "md"])
     if up is not None and st.session_state.get("_uploaded") != up.file_id:
         resume_text = extract_text(up.name, up.getvalue())
         db.save_resume(resume_text, profile)
-        # оригинал файла нужен для проверки формата (таблицы, колонтитулы, картинки)
+        # the original file is needed to check the format (tables, headers/footers, images)
         for old in DATA_DIR.glob("resume_original.*"):
             old.unlink()
         (DATA_DIR / f"resume_original{up.name[up.name.rfind('.'):].lower()}").write_bytes(up.getvalue())
@@ -106,7 +106,7 @@ with tab_resume:
         b.markdown("**🩹 Слабые места**\n" + bullet(profile.get("weaknesses")))
         c.markdown("**🛠 Что улучшить**\n" + bullet(profile.get("improvement_tips")))
 
-    # ---------- Улучшение резюме под ATS ----------
+    # ---------- ATS resume improvement ----------
     if edited.strip():
         st.divider()
         st.subheader("🚀 Улучшить резюме для ATS и HR")
@@ -181,7 +181,7 @@ with tab_resume:
             if rw and rw.get("target") == target:
                 doc, rlang = rw["resume"], rw["lang"]
                 pdf_bytes = to_pdf(doc, rlang)
-                # проверяем готовый PDF так же, как его прочтёт ATS: извлекаем текст обратно
+                # check the final PDF the way an ATS reads it: extract the text back
                 pdf_text = extract_text("cv.pdf", pdf_bytes)
                 after = keyword_coverage(pdf_text, ats["keywords"])
                 after_issues = format_checks(pdf_text, "cv.pdf", pdf_bytes)
@@ -209,7 +209,7 @@ with tab_resume:
                 with st.expander("Текст нового резюме так, как его видит робот"):
                     st.text(pdf_text)
 
-# ---------- База фактов ----------
+# ---------- Fact base ----------
 with tab_facts:
     st.subheader("База фактов — эталон для резюме")
     st.caption("Честный подробный рассказ о себе. Резюме, письма и оценка вакансий строятся по нему, а не по старому "
@@ -268,7 +268,7 @@ with tab_facts:
             with col.popover("Что сделано"):
                 st.markdown(bullet(m["changes_made"]))
 
-# ---------- Поиск ----------
+# ---------- Search ----------
 with tab_search:
     st.subheader("Поиск вакансий")
     suggestions = (profile or {}).get("search_keywords", [])
@@ -328,7 +328,7 @@ with tab_search:
     if not resume_text:
         st.info("Чтобы анализировать вакансии, сначала загрузите резюме.")
 
-# ---------- Вакансии ----------
+# ---------- Jobs ----------
 with tab_jobs:
     f1, f2, f3 = st.columns([1, 2, 2])
     min_score = f1.slider("Мин. совпадение", 0, 100, 0, 5)
@@ -414,7 +414,7 @@ with tab_jobs:
                 c2.markdown("**Добавить ключевые слова**\n" + ", ".join(t["keywords_to_add"]))
                 c2.markdown("**Честно о пробелах**\n" + bullet(t["honest_gaps"]))
 
-# ---------- Автопилот ----------
+# ---------- Autopilot ----------
 with tab_auto:
     st.subheader("Автопилот")
     st.caption("Сам ищет вакансии, отсеивает неподходящие, оценивает и готовит под лучшие резюме (PDF) и письмо. "
@@ -493,7 +493,7 @@ with tab_auto:
         settings["home_area"] = st.text_input("Рядом с домом — это (через запятую)", settings["home_area"])
         if st.button("💾 Сохранить настройки автопилота"):
             save_settings(settings)
-            if nxt:  # время могло поменяться
+            if nxt:  # the time may have changed
                 pipeline.install_schedule(settings["auto_times"])
             st.success("Сохранено")
 
@@ -555,7 +555,7 @@ with tab_auto:
             lines = pipeline.LOG_PATH.read_text(encoding="utf-8", errors="replace").splitlines()
             st.code("\n".join(lines[-60:]), language=None)
 
-# ---------- Настройки ----------
+# ---------- Settings ----------
 with tab_settings:
     st.subheader("Ключи API")
     st.caption("Хранятся только локально в файле D:\\JobHunter\\.env")

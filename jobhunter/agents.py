@@ -1,11 +1,11 @@
-"""Агенты. У каждого своя роль, системный промпт и бэкенд (ollama / claude) из настроек.
+"""Agents. Each has its own role, system prompt and backend (ollama / claude) from settings.
 
-1. ResumeAnalyst    — разбирает резюме: профиль, сильные/слабые стороны, советы, ключевые слова для поиска.
-2. JobAnalyst       — оценивает вакансию против профиля: % совпадения, требования, пробелы, red flags.
-3. CoverLetterWriter — пишет сопроводительное письмо (carta de presentación) под конкретную вакансию.
-4. ResumeTailor     — подсказывает, как адаптировать резюме под конкретную вакансию.
-5. AtsAuditor       — по пачке вакансий выясняет, по каким словам и критериям ATS/HR отсеивают резюме.
-6. ResumeWriter     — переписывает резюме под эти слова (только реальные факты) → PDF/DOCX.
+1. ResumeAnalyst    — reviews the resume: profile, strengths/weaknesses, tips, search keywords.
+2. JobAnalyst       — scores a job against the profile: % match, requirements, gaps, red flags.
+3. CoverLetterWriter — writes a cover letter (carta de presentación) for a specific job.
+4. ResumeTailor     — suggests how to adapt the resume to a specific job.
+5. AtsAuditor       — from a batch of jobs, finds the keywords and criteria ATS/HR use to filter resumes.
+6. ResumeWriter     — rewrites the resume around those keywords (real facts only) → PDF/DOCX.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ LANG_NAMES = {"es": "испанском (España)", "en": "английском"
 
 
 def resume_language(settings: dict, resume_text: str) -> str:
-    """Язык нового резюме: из настроек или, если там auto, — как у исходного резюме."""
+    """Language of the new resume: from settings or, if 'auto', the same as the source resume."""
     lang = settings.get("resume_language", "auto")
     return detect_language(resume_text) if lang == "auto" else lang
 
@@ -93,7 +93,7 @@ class JobAnalyst:
         a = ask_json(self.settings, self.settings["backend_job_analyst"], self.SYSTEM, user,
                      JobAnalysis, effort="low").model_dump()
         score = a["match_score"] = max(0, min(100, int(a["match_score"])))
-        # вердикт выводим из оценки — так он всегда согласован с ней
+        # derive the verdict from the score so they always agree
         a["verdict"] = "подавать" if score >= 65 else "возможно" if score >= 45 else "не подходит"
         return a
 
@@ -252,7 +252,7 @@ _PERMIT = re.compile(r"permiso|nie\b|nif\b|residencia|work permit|visa|right to 
 
 
 def _guard_facts(rw: dict, source: str) -> dict:
-    """Проверки в коде поверх модели: убираем то, чего точно нет в исходнике."""
+    """Code checks on top of the model: remove anything that is definitely not in the source."""
     doc, warnings = rw["resume"], []
     if doc.get("work_permit") and not _PERMIT.search(source):
         doc["work_permit"] = ""

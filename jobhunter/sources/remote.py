@@ -1,9 +1,9 @@
-"""Международные площадки удалённой работы с открытыми API (без ключей).
+"""International remote job boards with open APIs (no keys).
 
-Remotive, RemoteOK, Himalayas, Jobicy, Arbeitnow. Их поиск работает по ключевым словам, без города:
-поле location у вакансии — это ограничение по стране/региону («USA», «Europe», «Worldwide»),
-по нему автопилот отсеивает то, что недоступно из Испании.
-RemoteOK и Arbeitnow отдают общую ленту — фильтруем по словам у себя.
+Remotive, RemoteOK, Himalayas, Jobicy, Arbeitnow. Their search is keyword-based, no city:
+the job's location field is a country/region restriction ("USA", "Europe", "Worldwide"),
+which the autopilot uses to drop jobs not open to candidates in Spain.
+RemoteOK and Arbeitnow return a general feed — we filter by words locally.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from .base import Source, html_to_text
 
 
 def _matches(query: str, *texts: str) -> bool:
-    """Все слова запроса (от 3 букв) есть в тексте вакансии."""
+    """All query words (3+ letters) appear in the job text."""
     words = [w for w in re.findall(r"\w+", query.lower()) if len(w) >= 3]
     hay = " ".join(t or "" for t in texts).lower()
     return all(w in hay for w in words)
@@ -40,7 +40,7 @@ class RemotiveSource(Source):
     title = "Remotive (удалёнка, мир)"
 
     def search(self, keywords, location, limit):
-        # поиск API фактически игнорирует запрос — берём ленту и фильтруем по словам сами
+        # the API search effectively ignores the query — fetch the feed and filter by words ourselves
         r = self.session.get("https://remotive.com/api/remote-jobs", params={"search": keywords}, timeout=30)
         r.raise_for_status()
         items = [it for it in r.json().get("jobs", [])
@@ -57,7 +57,7 @@ class RemotiveSource(Source):
 class RemoteOKSource(Source):
     name = "remoteok"
     title = "RemoteOK (удалёнка, мир)"
-    _feed: list | None = None  # одна загрузка ленты на прогон
+    _feed: list | None = None  # one feed download per run
 
     def search(self, keywords, location, limit):
         if RemoteOKSource._feed is None:

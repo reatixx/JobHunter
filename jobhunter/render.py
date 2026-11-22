@@ -1,7 +1,7 @@
-"""Сборка резюме в PDF и DOCX в ATS-дружелюбном формате.
+"""Builds the resume as PDF and DOCX in an ATS-friendly format.
 
-Правила вёрстки: одна колонка, настоящий текст (не картинка), стандартный шрифт, стандартные
-заголовки разделов, контакты в теле документа (не в колонтитуле), без таблиц, иконок и графиков.
+Layout rules: single column, real text (not an image), standard font, standard section
+headings, contacts in the body (not in the header), no tables, icons or charts.
 """
 from __future__ import annotations
 

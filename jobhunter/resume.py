@@ -1,4 +1,4 @@
-"""Извлечение текста резюме из PDF / DOCX / TXT."""
+"""Extracts resume text from PDF / DOCX / TXT."""
 from __future__ import annotations
 
 import io

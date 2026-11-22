@@ -1,4 +1,4 @@
-"""InfoJobs — официальный API (регистрация приложения: https://developer.infojobs.net)."""
+"""InfoJobs — official API (app registration: https://developer.infojobs.net)."""
 from __future__ import annotations
 
 from ..config import get_secret
@@ -52,7 +52,7 @@ class InfoJobsSource(Source):
                 break
             page += 1
 
-        # Полное описание есть только в карточке вакансии
+        # The full description is only on the job page
         for j in jobs:
             try:
                 d = self._get(f"/7/offer/{j.external_id}")

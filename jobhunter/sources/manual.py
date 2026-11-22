@@ -1,4 +1,4 @@
-"""Ручное добавление вакансии: по ссылке (любой сайт) или вставленным текстом."""
+"""Manual job entry: by link (any site) or pasted text."""
 from __future__ import annotations
 
 import hashlib

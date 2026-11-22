@@ -1,7 +1,7 @@
-"""Job Today — публичные страницы выдачи (jobtoday.com/es/trabajos-<запрос>/<город>).
+"""Job Today — public search pages (jobtoday.com/es/trabajos-<query>/<city>).
 
-Вакансии берутся из JSON (__NEXT_DATA__), встроенного в страницу; там уже есть полное описание.
-API нет, так что при изменении сайта модуль может сломаться — остальные источники продолжат работать.
+Jobs come from the JSON (__NEXT_DATA__) embedded in the page, which already has the full description.
+There is no API, so this module may break if the site changes — the other sources keep working.
 """
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ class JobTodaySource(Source):
             title=p.get("role", ""),
             company=p.get("companyName") or (p.get("company") or {}).get("name", ""),
             location=addr.get("shortName") or p.get("address", ""),
-            # у вакансий с партнёрских сайтов (isExternalJob) canonicalUrl пустой, адрес — в externalUrl
+            # jobs from partner sites (isExternalJob) have an empty canonicalUrl; the address is in externalUrl
             url=(BASE + p["canonicalUrl"]) if p.get("canonicalUrl") else (p.get("externalUrl") or BASE),
             description=("\n".join(head) + "\n\n" if head else "") + html_to_text(p.get("description", "")),
             salary=p.get("salary", "") if isinstance(p.get("salary"), str) else "",

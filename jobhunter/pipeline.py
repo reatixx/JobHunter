@@ -1,10 +1,10 @@
-"""Автопилот: поиск → фильтры → оценка → резюме и письмо под вакансию → очередь «Готово к отправке».
+"""Autopilot: search → filters → scoring → tailored resume and letter → "Ready to send" queue.
 
-Запуск:  .venv\\Scripts\\python.exe -m jobhunter.pipeline [--skip-search] [--max-prepare N]
-Расписание: python -m jobhunter.pipeline --install-schedule   (время из настройки auto_times)
-            python -m jobhunter.pipeline --remove-schedule
+Run:      .venv\\Scripts\\python.exe -m jobhunter.pipeline [--skip-search] [--max-prepare N]
+Schedule: python -m jobhunter.pipeline --install-schedule   (times from the auto_times setting)
+          python -m jobhunter.pipeline --remove-schedule
 
-Ничего не отправляет: только готовит отклики. Отправку подтверждает пользователь.
+It never sends anything: it only prepares applications. The user confirms each one.
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ TASK_NAME = "JobHunter Autopilot"
 
 log = logging.getLogger("jobhunter.pipeline")
 
-# --- фильтры без ИИ ---------------------------------------------------------
+# --- filters without AI ---------------------------------------------------------
 _EN_LEVEL = r"(?:c1|c2|(?<!b1-)(?<!b1/)(?<!b1 )b2\+?|alto|avanzado|fluido|fluid[oa]|nativo|bilingüe|bilingue|excelente|muy bueno|proficient|fluent|native|advanced)"
 _ENGLISH_REQUIRED = re.compile(
     rf"ingl[eé]s\W+(?:\w+\W+){{0,3}}?{_EN_LEVEL}"
@@ -48,7 +48,7 @@ _ENGLISH_REQUIRED = re.compile(
 )
 _RUSSIAN = re.compile(r"russian|\bruso\b|\brusa\b|русск", re.I)
 
-# «Valorable inglés B2» — пожелание, а не требование
+# "Valorable inglés B2" is a nice-to-have, not a requirement
 _OPTIONAL = re.compile(r"valorable|se valorar[aá]|valoraremos|deseable|nice to have|a plus|is a bonus|opcional|"
                        r"плюсом|желательн|приветству|преимуществ", re.I)
 
@@ -57,7 +57,7 @@ def english_required(text: str) -> str:
     for m in _ENGLISH_REQUIRED.finditer(text):
         before = text[max(0, m.start() - 50):m.start()]
         after = text[m.end():m.end() + 25]
-        # «Nice to have» после совпадения — обычно заголовок следующего блока, его не учитываем
+        # "Nice to have" after a match is usually the heading of the next block — ignore it
         if _OPTIONAL.search(before.split(".")[-1].split("\n")[-1]) or \
                 re.search(r"^\W*(?:\w+\W+){0,3}?(?:is a plus|is a bonus|valorable|deseable|se valorar|будет плюсом|желательн|приветству)",
                           after.split(".")[0], re.I):
@@ -69,7 +69,7 @@ def english_required(text: str) -> str:
 _REMOTE = re.compile(r"remot[oae]|teletrabajo|en remoto|home ?office|work from home|wfh|100\s?% remot|anywhere", re.I)
 
 
-# --- компании из России и Беларуси (по тексту вакансии; «кроме РФ» и т.п. не считается) ---
+# --- companies from Russia and Belarus (by job text; "except Russia" etc. doesn't count) ---
 _RU_BY_NEG = re.compile(
     r"(?:кроме|вне|не из|не в|не для|за пределами|без|exclud\w*|except|outside(?: of)?)\s+"
     r"(?:рф|россии|беларуси|белоруссии|рб|russia|belarus)"
@@ -82,7 +82,7 @@ _RU_BY = re.compile(
     r"ижевск|барнаул|иркутск|хабаровск|ярославл|владивосток|\bтомск|оренбург|кемерово|рязан|калининград|"
     r"\bтул[аеы]\b|\bсочи\b|иннополис|минск|гомел|\bбрест|гродн|витебск|могил[её]в|"
     r"\brussia\b|\bbelarus\b|moscow|\bminsk\b|petersburg|"
-    # крупные российские компании — по названию
+    # large Russian companies — by name
     r"\bмтс\b|\bmts\b|сбер|\bsber|яндекс|yandex|тинькофф|tinkoff|т-банк|\bvk\b|\bвк\b|озон|\bozon\b|wildberries|"
     r"вайлдберриз|авито|\bavito\b|касперск|kaspersky|ростелеком|газпром|\bвтб\b|альфа-банк|\bx5\b|магнит\b|"
     r"лига цифровой|\b1с\b|мегафон|билайн|росатом|ланит|\bкрок\b|positive technologies|\bсибур", re.I)
@@ -94,7 +94,7 @@ def ru_by_marker(job: dict) -> str:
     return m.group(0) if m else ""
 
 
-# --- без переезда: удалённо или рядом с домом ---
+# --- no relocation: remote or close to home ---
 _REMOTE_ANY = re.compile(r"remot[oae]|teletrabajo|home ?office|work from home|wfh|anywhere|"
                          r"удал[её]нн|удал[её]нк|дистанционн|из любой (?:точки|страны)", re.I)
 _REMOTE_FULL = re.compile(r"100\s?%\s?(?:remot|teletrabajo)|full[- ]?remote|fully remote|totalmente remot|"
@@ -132,7 +132,7 @@ LANG_RU = {"es": "испанском", "en": "английском", "de": "не
 
 
 def ad_language(text: str) -> str:
-    """Язык текста вакансии по частым словам (es/en/de/fr/pt/it/nl/ru)."""
+    """Language of the job text by frequent words (es/en/de/fr/pt/it/nl/ru)."""
     if detect_language(text) == "ru":
         return "ru"
     words = re.findall(r"[a-zà-ÿ]+", text.lower()[:4000])
@@ -141,7 +141,7 @@ def ad_language(text: str) -> str:
 
 
 def region_ok(location: str, settings: dict) -> bool:
-    """Для удалённых вакансий: доступна ли из Испании (по ограничению региона)."""
+    """For remote jobs: whether it is open to candidates in Spain (by region restriction)."""
     if not location.startswith("Remoto:"):
         return True
     loc = location.lower()
@@ -150,19 +150,19 @@ def region_ok(location: str, settings: dict) -> bool:
     return any(t.strip() and t.strip() in loc for t in settings.get("remote_regions", "").lower().split(","))
 
 
-# Руководящие и старшие роли: для junior-профиля на них не тратим вызовы модели (auto_skip_senior).
+# Management and senior roles: for a junior profile, don't spend model calls on them (auto_skip_senior).
 _SENIOR = re.compile(
     r"\b(head|lead|leader|l[íi]der|manager|director|directora|senior|sr\.?|jefe|jefa|responsable|principal|"
     r"staff|architect|arquitect[oa]|vp|cto|cio|chief|руководител\w*|ведущ\w*|старш\w*|тимлид|лид)\b", re.I)
 
 
-# Неоплачиваемая «стажировка» — обычно продажа курсов под видом вакансии.
+# Unpaid "internship" — usually selling courses disguised as a job.
 _UNPAID = re.compile(
     r"неоплачиваем\w*|без оплаты|не оплачивается|бесплатн\w* стажир\w*|"
     r"no remunerad[oa]|sin remuneraci[óo]n|pr[áa]cticas no remuneradas|unpaid|without pay|no salary", re.I)
 
 
-# обязательные права/машина (auto_skip_license, если прав нет); «valorable» не отсеиваем
+# mandatory driving licence/car (auto_skip_license, if you have none); "valorable" is not filtered out
 _LICENSE = re.compile(r"carn[eé]t? de conducir|permiso de conducir|carn[eé]t? B\b|veh[ií]culo propio|driving licen[cs]e|"
                       r"водительск\w* (?:прав|удостоверени)", re.I)
 _LIC_OPTIONAL = re.compile(r"valor|deseable|plus|preferib|se tendr[aá] en cuenta|nice to have|ideal", re.I)
@@ -179,7 +179,7 @@ def license_required(text: str) -> str:
 
 
 def filter_reason(job: dict, settings: dict) -> str:
-    """Почему вакансию стоит отсеять сразу, без вызова модели. Пустая строка — оставить."""
+    """Why the job should be filtered out right away, without a model call. Empty string = keep."""
     text = f"{job.get('title', '')}\n{job.get('description', '')}"
     if settings.get("auto_skip_senior", True) and (m := _SENIOR.search(job.get("title") or "")):
         return f"руководящая/старшая роль («{m.group(0)}»)"
@@ -200,7 +200,7 @@ def filter_reason(job: dict, settings: dict) -> str:
     if lang not in ("es", "en", "ru"):
         return f"вакансия на {LANG_RU[lang]}"
     if settings.get("auto_skip_english_ads") and lang == "en" \
-            and not _RUSSIAN.search(text):  # «Russian speaking support» часто пишут по-английски
+            and not _RUSSIAN.search(text):  # "Russian speaking support" ads are often written in English
         return "вакансия написана по-английски"
     if settings.get("auto_remote_only") and not _REMOTE.search(f"{text}\n{job.get('location', '')}"):
         return "не удалённая"
@@ -223,7 +223,7 @@ def parse_queries(settings: dict) -> list[tuple[str, str]]:
     return out
 
 
-# --- шаги ---------------------------------------------------------------------
+# --- steps ---------------------------------------------------------------------
 def step_search(settings: dict) -> list[str]:
     new_ids: list[str] = []
     local = [s for s in settings["sources"] if s not in REMOTE_SOURCES and s not in RU_SOURCES]
@@ -294,13 +294,13 @@ def step_analyze(settings: dict, resume_text: str, profile: dict | None) -> int:
         except LLMError as e:
             log.error("Оценка остановлена: %s", e)
             break
-        except Exception as e:  # одна плохая вакансия не должна ронять весь прогон
+        except Exception as e:  # one bad job must not break the whole run
             log.warning("Оценка не удалась (%s): %s", job["title"], e)
     return done
 
 
 def get_ats_profile(settings: dict, profile: dict | None, lang: str) -> dict:
-    """Общий ATS-профиль по базе. Берём сохранённый из вкладки «Резюме», иначе строим один раз."""
+    """General ATS profile from the database. Uses the one saved in the "Resume" tab, otherwise builds it once."""
     saved = db.kv_get("ats_profile")
     if saved and saved.get("lang") == lang and saved.get("target") == "__all__":
         return saved["profile"]
@@ -313,14 +313,14 @@ def get_ats_profile(settings: dict, profile: dict | None, lang: str) -> dict:
 
 
 def prepare_application(job: dict, settings: dict, resume_text: str, profile: dict | None, ats: dict | None = None) -> Path:
-    """Резюме под вакансию (PDF) + сопроводительное письмо → папка и статус «ready».
+    """Tailored resume (PDF) + cover letter → folder and status "ready".
 
-    Если есть база фактов — резюме собирается из неё заново под трек вакансии (поддержка / фронтенд),
-    а вопросы агента уходят в очередь уточнений (Telegram, вкладка «База фактов»).
+    If there is a fact base, the resume is rebuilt from it for the job's track (support / frontend),
+    and the agent's questions go to the clarification queue (Telegram, "Fact base" tab).
     """
     lang = resume_language(settings, resume_text)
     letter_settings = settings
-    # на англоязычную вакансию — резюме и письмо по-английски, на испанскую — по-испански
+    # English job → resume and letter in English; Spanish job → in Spanish
     ad = ad_language(job.get("description") or "") if len(job.get("description") or "") > 300 else ""
     if ad in ("es", "en", "ru"):
         if settings.get("resume_language", "auto") == "auto":
@@ -368,7 +368,7 @@ def step_prepare(settings: dict, resume_text: str, profile: dict | None, limit: 
         return 0
     cands = [j for j in db.list_jobs(statuses=["new"], analyzed=True)
              if (j["score"] or 0) >= int(settings["auto_min_score"]) and not j["prepared_at"]]
-    cands = cands[:limit]  # list_jobs уже сортирует по score
+    cands = cands[:limit]  # list_jobs already sorts by score
     if not cands:
         return 0
     lang = resume_language(settings, resume_text)
@@ -387,7 +387,7 @@ def step_prepare(settings: dict, resume_text: str, profile: dict | None, limit: 
     return done
 
 
-# --- запуск ---------------------------------------------------------------------
+# --- run ---------------------------------------------------------------------
 def run(skip_search: bool = False, max_prepare: int | None = None) -> dict:
     settings = load_settings()
     resume_text, profile = db.load_resume()
@@ -425,7 +425,7 @@ def _acquire_lock() -> bool:
     return True
 
 
-# --- расписание (Планировщик Windows, без прав администратора) -------------------
+# --- schedule (Windows Task Scheduler, no admin rights) -------------------
 def install_schedule(times: str) -> None:
     pyw = ROOT / ".venv" / "Scripts" / "pythonw.exe"
     triggers = ", ".join(f"(New-ScheduledTaskTrigger -Daily -At '{t.strip()}')" for t in times.split(",") if t.strip())

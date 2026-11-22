@@ -1,4 +1,4 @@
-"""Модели данных: вакансия и структурированные ответы агентов."""
+"""Data models: job and structured agent responses."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -24,8 +24,8 @@ class Job:
         return f"{self.source}:{self.external_id}"
 
 
-# Все поля обязательные и extra="forbid" — так схема годится и для structured outputs Claude,
-# и для параметра format в Ollama.
+# All fields are required and extra="forbid" — so the schema works both for Claude structured outputs
+# and for the Ollama format parameter.
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -68,7 +68,7 @@ class ResumeTailoring(_Strict):
     honest_gaps: list[str] = Field(description="Пробелы, которые нельзя закрыть правкой резюме — как о них сказать честно")
 
 
-# ---------- ATS-аудит и улучшение резюме ----------
+# ---------- ATS audit and resume improvement ----------
 
 class AtsKeyword(_Strict):
     term: str = Field(description="Навык/инструмент/требование, 1-4 слова, как пишут в вакансиях. НЕ название вакансии и НЕ целое предложение")

@@ -1,4 +1,4 @@
-"""Jooble — официальный REST API (бесплатный ключ: https://jooble.org/api/about)."""
+"""Jooble — official REST API (free key: https://jooble.org/api/about)."""
 from __future__ import annotations
 
 from ..config import get_secret
@@ -38,7 +38,7 @@ class JoobleSource(Source):
                     company=(it.get("company") or "").strip(),
                     location=it.get("location", ""),
                     url=it.get("link", ""),
-                    # Jooble отдаёт только сниппет; полный текст на сайте-первоисточнике
+                    # Jooble only returns a snippet; the full text is on the original site
                     description=html_to_text(it.get("snippet", "")),
                     salary=it.get("salary", "") or "",
                     posted=(it.get("updated") or "")[:10],

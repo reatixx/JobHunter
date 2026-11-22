@@ -1,10 +1,10 @@
-"""Проверки резюме «глазами ATS» без ИИ: читаемость файла, контакты, разделы, покрытие ключевых слов.
+"""Resume checks "through the eyes of an ATS", without AI: file readability, contacts, sections, keyword coverage.
 
-ATS (Applicant Tracking System — InfoJobs, Workday, SuccessFactors, Taleo, Personio и т.п.) делает примерно так:
-1) извлекает из файла текст — картинки, колонки, таблицы, иконки и колонтитулы часто теряются или перемешиваются;
-2) раскладывает текст по разделам по стандартным заголовкам (Experiencia, Formación, Idiomas…);
-3) ищет ключевые слова вакансии и стоп-критерии (язык, разрешение на работу, опыт) и ранжирует кандидатов;
-4) HR смотрит верх первой страницы ~10 секунд: должность, ключевые навыки, локация, языки.
+An ATS (Applicant Tracking System — InfoJobs, Workday, SuccessFactors, Taleo, Personio, etc.) roughly does this:
+1) extracts text from the file — images, columns, tables, icons and headers/footers are often lost or scrambled;
+2) splits the text into sections by standard headings (Experiencia, Formación, Idiomas…);
+3) looks for the job's keywords and knockout criteria (language, work permit, experience) and ranks candidates;
+4) HR looks at the top of the first page for ~10 seconds: title, key skills, location, languages.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ _EN = {"the", "and", "of", "in", "with", "for", "to", "a", "an", "experience", "
 
 
 def detect_language(text: str) -> str:
-    """'ru' / 'es' / 'en' по тексту резюме."""
+    """'ru' / 'es' / 'en' based on the resume text."""
     letters = [c for c in text if c.isalpha()]
     if letters and sum("а" <= c.lower() <= "я" or c in "ёЁ" for c in letters) / len(letters) > 0.3:
         return "ru"
@@ -44,12 +44,12 @@ def _contains(text_norm: str, variant: str) -> bool:
     v = norm(variant).strip()
     if not v:
         return False
-    # границы слова, но допускаем символы вроде C++, .NET, Node.js
+    # word boundaries, but allow things like C++, .NET, Node.js
     return re.search(rf"(?<!\w){re.escape(v)}(?!\w)", text_norm) is not None
 
 
 def keyword_coverage(text: str, keywords: list[dict]) -> dict:
-    """Какие ключевые слова ATS-профиля найдены в тексте. Счёт взвешен по важности (1-3)."""
+    """Which ATS profile keywords are found in the text. Score is weighted by importance (1-3)."""
     t = norm(text)
     rows, got, total = [], 0, 0
     for k in keywords:
@@ -65,7 +65,7 @@ def keyword_coverage(text: str, keywords: list[dict]) -> dict:
 
 
 def format_checks(text: str, filename: str = "", data: bytes | None = None) -> list[tuple[str, str]]:
-    """Список (уровень, сообщение): уровень — ok / warn / fail."""
+    """List of (level, message): level is ok / warn / fail."""
     out: list[tuple[str, str]] = []
     words = len(text.split())
 

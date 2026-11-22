@@ -6,8 +6,6 @@ Buscar trabajo en España me llevaba horas: revisar varios portales, descartar o
 o coche propio, adaptar el CV y escribir una carta para cada una. JobHunter automatiza la parte repetitiva
 y me deja solo lo que requiere decisión humana: revisar y enviar.
 
-> Documentación detallada en ruso: [README.ru.md](README.ru.md).
-
 ## Qué hace
 
 **1. Busca ofertas** en varias fuentes sin duplicados:
@@ -65,7 +63,8 @@ run.bat                     :: abre la interfaz en http://localhost:8501
 Autopiloto manual: `.venv\Scripts\python.exe -m jobhunter.pipeline [--skip-search] [--max-prepare N]`,
 programación: `--install-schedule` / `--remove-schedule`.
 
-La interfaz está en ruso (mi idioma nativo); los CV y las cartas se generan en español.
+El código y los comentarios están en inglés. La interfaz y los prompts de los agentes están en ruso (mi idioma nativo);
+los CV y las cartas se generan en el idioma de la oferta (español o inglés).
 
 ## Cómo lo hice
 

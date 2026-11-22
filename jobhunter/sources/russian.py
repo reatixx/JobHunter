@@ -1,8 +1,8 @@
-"""Русскоязычные источники: Habr Career (JSON API сайта) и публичные Telegram-каналы с вакансиями.
+"""Russian-language sources: Habr Career (the site's JSON API) and public Telegram job channels.
 
-Telegram читается через веб-ленту t.me/s/<канал> — без логина и без аккаунта пользователя.
-Компании из России и Беларуси здесь не отсеиваются — это делает автопилот (pipeline.filter_reason),
-чтобы правило работало одинаково для всех источников.
+Telegram is read through the web feed t.me/s/<channel> — no login, no user account.
+Companies from Russia and Belarus are not filtered here — the autopilot does it (pipeline.filter_reason),
+so the rule works the same for every source.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ _REMOTE_RU = re.compile(r"удал[её]нн|удал[её]нк|remote|из лю
 
 
 def _stem_match(query: str, text: str) -> bool:
-    """Все слова запроса есть в тексте — по первым 6 буквам, чтобы ловить падежи (поддержка/поддержки)."""
+    """All query words appear in the text — matched by the first 6 letters to catch Russian word endings."""
     words = [w[:6] for w in re.findall(r"\w+", query.lower()) if len(w) >= 3]
     low = text.lower()
     return bool(words) and all(w in low for w in words)
@@ -94,7 +94,7 @@ class TelegramChannelsSource(Source):
         posts = []
         for ch in self._channels():
             before = None
-            for _ in range(2):  # две страницы ленты ≈ 40 последних постов
+            for _ in range(2):  # two feed pages ≈ the last 40 posts
                 url = f"https://t.me/s/{ch}" + (f"?before={before}" if before else "")
                 try:
                     r = self.session.get(url, timeout=30)
@@ -128,7 +128,7 @@ class TelegramChannelsSource(Source):
             title = next((l for l in lines if len(l) > 3), "Вакансия")[:120]
             m = re.search(r"(?:компания|company|работодатель)\s*[:—–-]\s*([^\n]{2,60})", text, re.I)
             company = m.group(1).strip() if m else ""
-            # формат Remocate: «Должность в Компания : https://…»
+            # Remocate format: "Position at Company : https://…"
             if rm := re.match(r"(.+?)\s+в\s+(.+?)\s*:\s*https?://", title):
                 title, company = rm.group(1).strip(), company or rm.group(2).strip()
             channel = p["post"].split("/")[0]

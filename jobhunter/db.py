@@ -1,4 +1,4 @@
-"""SQLite-хранилище вакансий, анализов, писем и резюме."""
+"""SQLite storage for jobs, analyses, letters and resumes."""
 from __future__ import annotations
 
 import json
@@ -33,14 +33,14 @@ CREATE TABLE IF NOT EXISTS resume (
 );
 """
 
-# Колонки, добавленные после первой версии: дописываются в старую базу при подключении
+# Columns added after the first version: added to an existing database on connect
 EXTRA_COLUMNS = {
-    "filtered": "TEXT",      # почему автопилот отсеял вакансию (без ИИ)
-    "cv": "TEXT",            # JSON: резюме под эту вакансию {lang, resume, changes_made, questions_for_user}
-    "app_dir": "TEXT",       # папка с готовыми PDF и письмом
+    "filtered": "TEXT",      # why the autopilot filtered the job out (without AI)
+    "cv": "TEXT",            # JSON: resume for this job {lang, resume, changes_made, questions_for_user}
+    "app_dir": "TEXT",       # folder with the prepared PDFs and letter
     "prepared_at": "TEXT",
     "applied_at": "TEXT",
-    "notified_at": "TEXT",   # когда отклик отправлен в Telegram
+    "notified_at": "TEXT",   # when the application was sent to Telegram
 }
 
 STATUSES = {
@@ -80,12 +80,12 @@ def dedup_key(job: Job) -> str:
 
 
 def save_jobs(jobs: list[Job]) -> int:
-    """Сохраняет новые вакансии, пропуская дубли. Возвращает число новых."""
+    """Saves new jobs, skipping duplicates. Returns the number of new ones."""
     return len(save_jobs_ids(jobs))
 
 
 def save_jobs_ids(jobs: list[Job]) -> list[str]:
-    """Сохраняет новые вакансии, пропуская дубли (тот же id или то же название+компания). Возвращает id новых."""
+    """Saves new jobs, skipping duplicates (same id or same title+company). Returns the new ids."""
     added: list[str] = []
     now = datetime.now().isoformat(timespec="seconds")
     with connect() as con:
@@ -95,7 +95,7 @@ def save_jobs_ids(jobs: list[Job]) -> list[str]:
                 "SELECT 1 FROM jobs WHERE id=? OR (dedup_key=? AND dedup_key != '|')", (j.uid, key)
             ).fetchone()
             if exists:
-                # чиним старые записи Job Today без ссылки, если теперь ссылка нашлась
+                # repair old Job Today rows without a link once a link is found
                 if j.url and j.url.rstrip("/") != "https://jobtoday.com":
                     con.execute("UPDATE jobs SET url=? WHERE (id=? OR dedup_key=?) AND url IN ('', 'https://jobtoday.com')",
                                 (j.url, j.uid, key))
@@ -139,7 +139,7 @@ JSON_FIELDS = ("analysis", "tailoring", "cv")
 
 
 def get_job(job_id: str | int) -> dict | None:
-    """По id вакансии или по короткому номеру rowid (он нужен кнопкам Telegram: лимит 64 байта)."""
+    """By job id or by the short rowid (needed for Telegram buttons: 64-byte limit)."""
     col = "rowid" if isinstance(job_id, int) else "id"
     with connect() as con:
         row = con.execute(f"SELECT rowid AS rid, * FROM jobs WHERE {col}=?", (job_id,)).fetchone()

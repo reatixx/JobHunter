@@ -17,7 +17,7 @@ USER_AGENT = (
 
 
 class SourceError(Exception):
-    """Ошибка источника, которую нужно показать пользователю (нет ключа, блокировка и т.п.)."""
+    """Source error to show to the user (missing key, blocked, etc.)."""
 
 
 class Source:

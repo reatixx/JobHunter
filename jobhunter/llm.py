@@ -1,4 +1,4 @@
-"""Единый вызов LLM: локальная Ollama или Claude API, с опциональным JSON-ответом по схеме."""
+"""Single LLM call: local Ollama or the Claude API, with an optional schema-validated JSON response."""
 from __future__ import annotations
 
 import json
@@ -16,8 +16,8 @@ class LLMError(Exception):
 
 
 def _cap_arrays(node, limit: int = 20):
-    """Для Ollama ограничиваем длину списков в схеме: без maxItems локальная модель
-    при генерации по грамматике может бесконечно дописывать элементы."""
+    """For Ollama, cap list lengths in the schema: without maxItems, the local model
+    may keep generating items forever under grammar-constrained decoding."""
     if isinstance(node, dict):
         if node.get("type") == "array" and "maxItems" not in node:
             node["maxItems"] = limit
@@ -56,14 +56,14 @@ def _claude(settings: dict, system: str, user: str, schema: dict | None, effort:
         output_config["format"] = {"type": "json_schema", "schema": schema}
     try:
         client = anthropic.Anthropic()
-        # Потоковый режим: длинные ответы не упираются в HTTP-таймауты
+        # Streaming mode: long responses don't hit HTTP timeouts
         with client.beta.messages.stream(
             model=settings["claude_model"],
             max_tokens=32000,
             system=system,
             messages=[{"role": "user", "content": user}],
             output_config=output_config,
-            # при отказе модели запрос автоматически повторяется на резервной модели
+            # if the model refuses, the request is retried automatically on a fallback model
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
         ) as stream:
@@ -81,7 +81,7 @@ def _claude(settings: dict, system: str, user: str, schema: dict | None, effort:
     except anthropic.APIConnectionError:
         raise LLMError("Claude API: нет соединения с интернетом")
     except TypeError as e:
-        # нет ни ключа, ни профиля `ant auth login`
+        # neither an API key nor an `ant auth login` profile
         raise LLMError("Claude API не настроен: задайте ANTHROPIC_API_KEY во вкладке «Настройки» "
                        f"или переключите агента на ollama ({e})")
 
@@ -105,7 +105,7 @@ def ask_json(settings: dict, backend: str, system: str, user: str, model: type[T
     try:
         return model.model_validate_json(raw)
     except ValidationError:
-        # локальная модель иногда оборачивает JSON в текст — пробуем вытащить объект
+        # the local model sometimes wraps JSON in text — try to extract the object
         start, end = raw.find("{"), raw.rfind("}")
         if start != -1 and end > start:
             try:

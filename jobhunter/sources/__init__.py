@@ -23,7 +23,7 @@ SOURCES: dict[str, type[Source]] = {
 
 
 def reset_caches() -> None:
-    """Ленты RemoteOK/Arbeitnow/Telegram и карточки Habr кэшируются на прогон — сбрасываем перед новым."""
+    """RemoteOK/Arbeitnow/Telegram feeds and Habr cards are cached per run — reset before a new one."""
     for cls in SOURCES.values():
         for attr in ("_feed", "_posts"):
             if attr in cls.__dict__:
@@ -34,7 +34,7 @@ def reset_caches() -> None:
 
 def collect(settings: dict, keywords: str, location: str, names: list[str],
             on_progress: Callable[[str, str], None] = lambda name, msg: None) -> tuple[list[Job], dict[str, str]]:
-    """Опрашивает выбранные источники. Ошибка одного источника не мешает остальным."""
+    """Queries the selected sources. One source failing doesn't affect the others."""
     excluded = [w.strip().lower() for w in settings.get("exclude_words", "").split(",") if w.strip()]
     limit = int(settings.get("max_per_source", 25))
     all_jobs: list[Job] = []
@@ -54,7 +54,7 @@ def collect(settings: dict, keywords: str, location: str, names: list[str],
             report[name] = f"найдено {len(jobs)}"
         except SourceError as e:
             report[name] = f"ошибка: {e}"
-        except Exception as e:  # сеть, неожиданный формат ответа
+        except Exception as e:  # network error, unexpected response format
             report[name] = f"ошибка: {type(e).__name__}: {e}"
         on_progress(name, report[name])
     return all_jobs, report
