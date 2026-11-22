@@ -11,12 +11,13 @@ from __future__ import annotations
 import io
 import re
 import unicodedata
+from .i18n import tr
 
 SECTION_PATTERNS = {
-    "Опыт работы": r"experiencia|experience|trayectoria|опыт",
-    "Образование": r"formaci[oó]n|educaci[oó]n|education|estudios|образование",
-    "Навыки": r"competencias|habilidades|skills|conocimientos|aptitudes|навыки",
-    "Языки": r"idiomas|languages|языки",
+    tr("Work experience"): r"experiencia|experience|trayectoria|опыт",
+    tr("Education"): r"formaci[oó]n|educaci[oó]n|education|estudios|образование",
+    tr("Skills"): r"competencias|habilidades|skills|conocimientos|aptitudes|навыки",
+    tr("Languages"): r"idiomas|languages|языки",
 }
 
 _ES = {"de", "la", "el", "en", "y", "los", "las", "del", "con", "para", "por", "una", "experiencia", "como"}
@@ -70,54 +71,59 @@ def format_checks(text: str, filename: str = "", data: bytes | None = None) -> l
     words = len(text.split())
 
     if len(text.strip()) < 300:
-        out.append(("fail", "Из файла почти не извлекается текст — для робота резюме пустое (скан или картинка). "
-                            "Нужен PDF/DOCX с настоящим текстом."))
+        out.append(("fail", tr("Almost no text can be extracted from the file — to the robot the resume is "
+                               "empty (a scan or an image). You need a PDF/DOCX with real text.")))
     else:
-        out.append(("ok", f"Текст извлекается ({words} слов)"))
+        out.append(("ok", tr("Text is extractable ({0} words)", words)))
 
-    out.append(("ok", "Email найден") if re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", text)
-               else ("fail", "Не найден email — ATS не сможет создать карточку кандидата"))
-    out.append(("ok", "Телефон найден") if re.search(r"(\+?\d[\d\s().-]{7,}\d)", text)
-               else ("warn", "Не найден телефон"))
+    out.append(("ok", tr("Email found")) if re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", text)
+               else ("fail", tr("No email found — the ATS won't be able to create a candidate record")))
+    out.append(("ok", tr("Phone found")) if re.search(r"(\+?\d[\d\s().-]{7,}\d)", text)
+               else ("warn", tr("No phone found")))
 
     for name, pat in SECTION_PATTERNS.items():
         if not re.search(pat, text, re.I):
-            out.append(("warn", f"Нет стандартного заголовка раздела «{name}» — ATS может не разложить текст по полям"))
+            out.append(("warn", tr("No standard «{0}» section heading — the ATS may not map the text to fields", name)))
 
     if not re.search(r"\b(19|20)\d{2}\b", text):
-        out.append(("warn", "Не найдены даты (годы) — ATS не посчитает стаж"))
+        out.append(("warn", tr("No dates (years) found — the ATS won't calculate experience")))
     if words < 200:
-        out.append(("warn", "Резюме слишком короткое: мало мест для ключевых слов"))
+        out.append(("warn", tr("The resume is too short: little room for keywords")))
     elif words > 1000:
-        out.append(("warn", "Резюме длиннее ~2 страниц — HR обычно ждёт 1-2 страницы"))
+        out.append(("warn", tr("The resume is longer than ~2 pages — HR usually expects 1-2 pages")))
 
     icons = sum(1 for ch in text if 0xE000 <= ord(ch) <= 0xF8FF or unicodedata.category(ch) == "So")
     if icons > 3:
-        out.append(("warn", f"Найдено {icons} иконок/спецсимволов — ATS превращает их в мусор; лучше обычный текст"))
+        out.append(("warn", tr("Found {0} icons/special characters — the ATS turns them into garbage; plain "
+                               "text is better", icons)))
 
     if data and filename.lower().endswith(".docx"):
         import docx
         d = docx.Document(io.BytesIO(data))
         if d.tables:
-            out.append(("warn", f"В DOCX {len(d.tables)} таблиц(ы) — многие ATS читают таблицы вперемешку"))
+            out.append(("warn", tr("The DOCX has {0} table(s) — many ATS read tables out of order", len(d.tables))))
         hdr = " ".join(p.text for s in d.sections for p in [*s.header.paragraphs, *s.footer.paragraphs]).strip()
         if hdr:
-            out.append(("warn", "Есть текст в колонтитулах — ATS часто их пропускает (не держите там контакты)"))
+            out.append(("warn", tr("There is text in headers/footers — ATS often skip it (don't keep "
+                                   "contacts there)")))
         if d.inline_shapes:
-            out.append(("warn", "В документе есть картинки (фото/иконки/графики навыков) — роботу они не видны"))
+            out.append(("warn", tr("The document has images (photo/icons/skill charts) — the robot can't see "
+                                   "them")))
     if data and filename.lower().endswith(".pdf"):
         from pypdf import PdfReader
         r = PdfReader(io.BytesIO(data))
         if len(r.pages) > 2:
-            out.append(("warn", f"{len(r.pages)} страниц(ы) — лучше уложиться в 1-2"))
+            out.append(("warn", tr("{0} page(s) — better keep it to 1-2", len(r.pages))))
         try:
             imgs = sum(len(p.images) for p in r.pages)
         except Exception:
             imgs = 0
         if imgs:
-            out.append(("warn", f"В PDF изображений: {imgs}. Фото допустимо, но графики навыков и иконки робот не прочтёт"))
+            out.append(("warn", tr("Images in the PDF: {0}. A photo is fine, but the robot can't read skill "
+                                   "charts and icons", imgs)))
         lines = [l for l in text.splitlines() if l.strip()]
         short = sum(1 for l in lines if len(l.split()) <= 2)
         if len(lines) > 10 and short / len(lines) > 0.45:
-            out.append(("warn", "Много очень коротких строк — похоже на вёрстку в колонки; ATS может перемешать текст"))
+            out.append(("warn", tr("Many very short lines — looks like a multi-column layout; the ATS may "
+                                   "scramble the text")))
     return out

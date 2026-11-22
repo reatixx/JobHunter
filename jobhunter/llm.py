@@ -7,6 +7,7 @@ from typing import TypeVar
 import anthropic
 import requests
 from pydantic import BaseModel, ValidationError
+from .i18n import tr, ui_language_name
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -41,11 +42,12 @@ def _ollama(settings: dict, system: str, user: str, schema: dict | None) -> str:
     try:
         r = requests.post(f"{settings['ollama_url'].rstrip('/')}/api/chat", json=body, timeout=900)
     except requests.ConnectionError:
-        raise LLMError("Ollama не запущена (ollama serve)")
+        raise LLMError(tr("Ollama is not running (ollama serve)"))
     except requests.Timeout:
-        raise LLMError("Локальная модель не ответила за 15 минут — попробуйте ещё раз или переключите агента на Claude")
+        raise LLMError(tr("The local model did not answer within 15 minutes — try again or switch the agent "
+                          "to Claude"))
     if r.status_code == 404:
-        raise LLMError(f"В Ollama нет модели {settings['ollama_model']} (ollama pull {settings['ollama_model']})")
+        raise LLMError(tr("Ollama has no model {0} (ollama pull {1})", settings['ollama_model'], settings['ollama_model']))
     r.raise_for_status()
     return r.json()["message"]["content"]
 
@@ -69,36 +71,44 @@ def _claude(settings: dict, system: str, user: str, schema: dict | None, effort:
         ) as stream:
             resp = stream.get_final_message()
     except anthropic.AuthenticationError:
-        raise LLMError("Claude API: нет или неверный ключ ANTHROPIC_API_KEY (Настройки → ключи)")
+        raise LLMError(tr("Claude API: missing or invalid ANTHROPIC_API_KEY (Settings → keys)"))
     except anthropic.PermissionDeniedError as e:
-        raise LLMError(f"Claude API: нет доступа — {e.message}")
+        raise LLMError(tr("Claude API: access denied — {0}", e.message))
     except anthropic.RateLimitError:
-        raise LLMError("Claude API: превышен лимит запросов, попробуйте через минуту")
+        raise LLMError(tr("Claude API: rate limit exceeded, try again in a minute"))
     except anthropic.BadRequestError as e:
-        raise LLMError(f"Claude API: некорректный запрос — {e.message}")
+        raise LLMError(tr("Claude API: bad request — {0}", e.message))
     except anthropic.APIStatusError as e:
-        raise LLMError(f"Claude API: ошибка сервера {e.status_code}")
+        raise LLMError(tr("Claude API: server error {0}", e.status_code))
     except anthropic.APIConnectionError:
-        raise LLMError("Claude API: нет соединения с интернетом")
+        raise LLMError(tr("Claude API: no internet connection"))
     except TypeError as e:
         # neither an API key nor an `ant auth login` profile
-        raise LLMError("Claude API не настроен: задайте ANTHROPIC_API_KEY во вкладке «Настройки» "
-                       f"или переключите агента на ollama ({e})")
+        raise LLMError(tr("Claude API is not configured: set ANTHROPIC_API_KEY in the «Settings» tab or "
+                          "switch the agent to ollama ({0})", e))
 
     if resp.stop_reason == "refusal":
-        raise LLMError("Claude отказался выполнять запрос")
+        raise LLMError(tr("Claude refused the request"))
     if resp.stop_reason == "max_tokens":
-        raise LLMError("Ответ Claude обрезан по лимиту длины")
+        raise LLMError(tr("Claude's answer was cut off by the length limit"))
     return "".join(b.text for b in resp.content if b.type == "text")
 
 
+def _with_ui_language(system: str) -> str:
+    # prompts say "in the interface language": tell the model which one it is
+    return (f"{system}\n\nInterface language: {ui_language_name()}. "
+            "Write all explanations for the user in this language.")
+
+
 def ask_text(settings: dict, backend: str, system: str, user: str, effort: str = "medium") -> str:
+    system = _with_ui_language(system)
     if backend == "claude":
         return _claude(settings, system, user, None, effort).strip()
     return _ollama(settings, system, user, None).strip()
 
 
 def ask_json(settings: dict, backend: str, system: str, user: str, model: type[T], effort: str = "medium") -> T:
+    system = _with_ui_language(system)
     schema = model.model_json_schema()
     raw = (_claude(settings, system, user, schema, effort) if backend == "claude"
            else _ollama(settings, system, user, schema))
@@ -112,7 +122,7 @@ def ask_json(settings: dict, backend: str, system: str, user: str, model: type[T
                 return model.model_validate(json.loads(raw[start:end + 1]))
             except (ValidationError, json.JSONDecodeError):
                 pass
-        raise LLMError(f"Модель вернула ответ не по схеме: {raw[:300]}")
+        raise LLMError(tr("The model returned an answer that does not match the schema: {0}", raw[:300]))
 
 
 def ollama_status(settings: dict) -> tuple[bool, str]:
@@ -120,8 +130,8 @@ def ollama_status(settings: dict) -> tuple[bool, str]:
         r = requests.get(f"{settings['ollama_url'].rstrip('/')}/api/tags", timeout=5)
         names = [m["name"] for m in r.json().get("models", [])]
     except Exception:
-        return False, "Ollama не отвечает"
+        return False, tr("Ollama is not responding")
     want = settings["ollama_model"]
     if want in names or f"{want}:latest" in names:
-        return True, f"Ollama OK, модель {want}"
-    return False, f"Ollama работает, но модели {want} нет. Есть: {', '.join(names)}"
+        return True, tr("Ollama OK, model {0}", want)
+    return False, tr("Ollama is running, but model {0} is missing. Available: {1}", want, ', '.join(names))

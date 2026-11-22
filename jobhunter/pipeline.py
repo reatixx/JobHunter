@@ -27,6 +27,7 @@ from .llm import LLMError, ollama_status
 from .render import to_pdf
 from .sources import REMOTE_SOURCES, RU_SOURCES, collect, reset_caches
 from .sources.base import slugify
+from .i18n import tr
 
 APPS_DIR = DATA_DIR / "applications"
 LOG_PATH = DATA_DIR / "pipeline.log"
@@ -106,7 +107,7 @@ def location_reason(job: dict, settings: dict) -> str:
     if not settings.get("no_relocation"):
         return ""
     loc = (job.get("location") or "").lower()
-    if loc.startswith(("remoto:", "удалённо")):
+    if loc.startswith(("remoto:", tr("remote"))):
         return ""
     if any(h.strip() and h.strip() in loc for h in settings.get("home_area", "").lower().split(",")):
         return ""
@@ -114,8 +115,8 @@ def location_reason(job: dict, settings: dict) -> str:
     if _REMOTE_FULL.search(text):
         return ""
     if _REMOTE_ANY.search(text):
-        return "" if not _ONSITE.search(text) else f"гибрид/офис не рядом с домом ({job.get('location') or '?'})"
-    return f"офис не рядом с домом ({job.get('location') or 'город не указан'})"
+        return "" if not _ONSITE.search(text) else tr("hybrid/office not close to home ({0})", job.get('location') or '?')
+    return tr("office not close to home ({0})", job.get('location') or tr('city not specified'))
 
 
 _STOP = {
@@ -127,8 +128,8 @@ _STOP = {
     "it": {"e", "il", "di", "che", "per", "con", "una", "sono", "della", "nel", "esperienza", "lavoro"},
     "nl": {"en", "het", "van", "een", "voor", "met", "wij", "je", "jij", "zijn", "ervaring", "naar"},
 }
-LANG_RU = {"es": "испанском", "en": "английском", "de": "немецком", "fr": "французском",
-           "pt": "португальском", "it": "итальянском", "nl": "нидерландском", "ru": "русском"}
+LANG_RU = {"es": tr("in Spanish"), "en": tr("in English"), "de": tr("in German"), "fr": tr("in French"),
+           "pt": tr("in Portuguese"), "it": tr("in Italian"), "nl": tr("in Dutch"), "ru": tr("in Russian")}
 
 
 def ad_language(text: str) -> str:
@@ -182,32 +183,32 @@ def filter_reason(job: dict, settings: dict) -> str:
     """Why the job should be filtered out right away, without a model call. Empty string = keep."""
     text = f"{job.get('title', '')}\n{job.get('description', '')}"
     if settings.get("auto_skip_senior", True) and (m := _SENIOR.search(job.get("title") or "")):
-        return f"руководящая/старшая роль («{m.group(0)}»)"
+        return tr("management/senior role («{0}»)", m.group(0))
     if m := _UNPAID.search(text):
-        return f"неоплачиваемая («{m.group(0)}»)"
+        return tr("unpaid («{0}»)", m.group(0))
     if settings.get("auto_skip_license", True) and (m := license_required(text)):
-        return f"нужны водительские права («{m}»)"
+        return tr("driving licence required («{0}»)", m)
     if not region_ok(job.get("location") or "", settings):
-        return f"недоступна из Испании ({job['location'].removeprefix('Remoto:').strip()[:60]})"
+        return tr("not open to candidates in Spain ({0})", job['location'].removeprefix('Remoto:').strip()[:60])
     if settings.get("skip_ru_by", True) and (m := ru_by_marker(job)):
-        return f"похоже на компанию из России/Беларуси («{m}»)"
+        return tr("looks like a company from Russia/Belarus («{0}»)", m)
     if why := location_reason(job, settings):
         return why
     if settings.get("auto_skip_english_required") and (m := english_required(text)):
-        return f"обязательный английский: «{m}»"
+        return tr("mandatory English: «{0}»", m)
     desc = job.get("description") or ""
     lang = ad_language(desc) if len(desc) > 300 else "es"
     if lang not in ("es", "en", "ru"):
-        return f"вакансия на {LANG_RU[lang]}"
+        return tr("job ad {0}", LANG_RU[lang])
     if settings.get("auto_skip_english_ads") and lang == "en" \
             and not _RUSSIAN.search(text):  # "Russian speaking support" ads are often written in English
-        return "вакансия написана по-английски"
+        return tr("job ad written in English")
     if settings.get("auto_remote_only") and not _REMOTE.search(f"{text}\n{job.get('location', '')}"):
-        return "не удалённая"
+        return tr("not remote")
     low = text.lower()
     for w in (w.strip().lower() for w in settings.get("auto_block_words", "").split(",")):
         if w and w in low:
-            return f"стоп-слово «{w}»"
+            return tr("stop word «{0}»", w)
     return ""
 
 
@@ -243,7 +244,7 @@ def step_search(settings: dict) -> list[str]:
         jobs, report = collect(settings, kw, loc, names)
         ids = db.save_jobs_ids(jobs)
         new_ids += ids
-        log.info("Поиск «%s» / %s: %s → новых %d", kw, loc or "весь мир (удалёнка)",
+        log.info("Search «%s» / %s: %s → %d new", kw, loc or "worldwide (remote)",
                  "; ".join(f"{k}: {v}" for k, v in report.items()), len(ids))
     return new_ids
 
@@ -255,7 +256,7 @@ def step_filter(settings: dict, ids: list[str]) -> int:
         if job and (why := filter_reason(job, settings)):
             db.update_job(jid, status="hidden", filtered=why)
             hidden += 1
-            log.info("Отсеяна: %s — %s (%s)", job["title"], job["company"], why)
+            log.info("Filtered out: %s — %s (%s)", job["title"], job["company"], why)
     return hidden
 
 
@@ -263,8 +264,8 @@ def ensure_ollama(settings: dict) -> bool:
     ok, msg = ollama_status(settings)
     if ok:
         return True
-    if msg == "Ollama не отвечает" and shutil.which("ollama"):
-        log.info("Ollama не запущена — запускаю")
+    if msg == tr("Ollama is not responding") and shutil.which("ollama"):
+        log.info("Ollama is not running — starting it")
         flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
         subprocess.Popen(["ollama", "serve"], creationflags=flags,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -273,7 +274,7 @@ def ensure_ollama(settings: dict) -> bool:
             ok, msg = ollama_status(settings)
             if ok:
                 return True
-    log.error("Оценка вакансий пропущена: %s", msg)
+    log.error("Job scoring skipped: %s", msg)
     return False
 
 
@@ -290,12 +291,12 @@ def step_analyze(settings: dict, resume_text: str, profile: dict | None) -> int:
             a = analyst.run(job, profile, facts.source_text(resume_text))
             db.update_job(job["id"], analysis=a, score=a["match_score"])
             done += 1
-            log.info("Оценка %3d%%: %s — %s", a["match_score"], job["title"], job["company"])
+            log.info("Score %3d%%: %s — %s", a["match_score"], job["title"], job["company"])
         except LLMError as e:
-            log.error("Оценка остановлена: %s", e)
+            log.error("Scoring stopped: %s", e)
             break
         except Exception as e:  # one bad job must not break the whole run
-            log.warning("Оценка не удалась (%s): %s", job["title"], e)
+            log.warning("Scoring failed (%s): %s", job["title"], e)
     return done
 
 
@@ -306,7 +307,7 @@ def get_ats_profile(settings: dict, profile: dict | None, lang: str) -> dict:
         return saved["profile"]
     pool = db.list_jobs(statuses=["new", "ready", "interesting", "applied", "interview"])
     good = [j for j in pool if (j["score"] or 0) >= 45] or pool
-    log.info("Строю ATS-профиль по %d вакансиям", len(good[:20]))
+    log.info("Building the ATS profile from %d jobs", len(good[:20]))
     ats = AtsAuditor(settings).run(good, profile, lang)
     db.kv_set("ats_profile", {"target": "__all__", "lang": lang, "profile": ats})
     return ats
@@ -364,7 +365,7 @@ def step_prepare(settings: dict, resume_text: str, profile: dict | None, limit: 
         return 0
     if "claude" in (settings["backend_resume_writer"], settings["backend_cover_letter"]) \
             and not get_secret("ANTHROPIC_API_KEY"):
-        log.error("Подготовка пропущена: не задан ANTHROPIC_API_KEY")
+        log.error("Preparation skipped: ANTHROPIC_API_KEY is not set")
         return 0
     cands = [j for j in db.list_jobs(statuses=["new"], analyzed=True)
              if (j["score"] or 0) >= int(settings["auto_min_score"]) and not j["prepared_at"]]
@@ -378,12 +379,12 @@ def step_prepare(settings: dict, resume_text: str, profile: dict | None, limit: 
         try:
             folder = prepare_application(job, settings, resume_text, profile, ats)
             done += 1
-            log.info("Готов отклик %d%%: %s — %s → %s", job["score"], job["title"], job["company"], folder)
+            log.info("Application ready %d%%: %s — %s → %s", job["score"], job["title"], job["company"], folder)
         except LLMError as e:
-            log.error("Подготовка остановлена: %s", e)
+            log.error("Preparation stopped: %s", e)
             break
         except Exception as e:
-            log.warning("Подготовка не удалась (%s): %s", job["title"], e)
+            log.warning("Preparation failed (%s): %s", job["title"], e)
     return done
 
 
@@ -395,7 +396,7 @@ def run(skip_search: bool = False, max_prepare: int | None = None) -> dict:
     summary = {"started": started, "new": 0, "filtered": 0, "analyzed": 0, "prepared": 0, "error": ""}
     try:
         if not resume_text:
-            raise RuntimeError("резюме не загружено — загрузи его во вкладке «Резюме»")
+            raise RuntimeError(tr("no resume uploaded — upload it in the «Resume» tab"))
         if not skip_search:
             ids = step_search(settings)
             summary["new"] = len(ids)
@@ -405,11 +406,11 @@ def run(skip_search: bool = False, max_prepare: int | None = None) -> dict:
         summary["prepared"] = step_prepare(settings, resume_text, profile, limit)
     except Exception as e:
         summary["error"] = f"{type(e).__name__}: {e}"
-        log.exception("Автопилот упал")
+        log.exception("Autopilot crashed")
     summary["finished"] = datetime.now().isoformat(timespec="seconds")
     summary["ready_total"] = len(db.list_jobs(statuses=["ready"]))
     db.kv_set("last_run", summary)
-    log.info("Итог: %s", summary)
+    log.info("Summary: %s", summary)
     try:
         from .telegram_bot import notify_after_run
         notify_after_run(summary)
@@ -430,12 +431,7 @@ def install_schedule(times: str) -> None:
     pyw = ROOT / ".venv" / "Scripts" / "pythonw.exe"
     triggers = ", ".join(f"(New-ScheduledTaskTrigger -Daily -At '{t.strip()}')" for t in times.split(",") if t.strip())
     ps = (
-        f"$a = New-ScheduledTaskAction -Execute '{pyw}' -Argument '-m jobhunter.pipeline' -WorkingDirectory '{ROOT}';"
-        f"$t = @({triggers});"
-        "$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries "
-        "-ExecutionTimeLimit (New-TimeSpan -Hours 3);"
-        f"Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $a -Trigger $t -Settings $s "
-        "-Description 'JobHunter: поиск вакансий и подготовка откликов' -Force | Out-Null"
+        f"$a = New-ScheduledTaskAction -Execute '{pyw}' -Argument '-m jobhunter.pipeline' -WorkingDirectory '{ROOT}';$t = @({triggers});$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 3);Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $a -Trigger $t -Settings $s -Description 'JobHunter: job search and application preparation' -Force | Out-Null"
     )
     subprocess.run(["powershell", "-NoProfile", "-Command", ps], check=True)
 
@@ -454,20 +450,20 @@ def schedule_info() -> str:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="JobHunter: автопилот")
-    p.add_argument("--skip-search", action="store_true", help="не искать, только оценить и подготовить")
-    p.add_argument("--max-prepare", type=int, help="сколько откликов подготовить (по умолчанию из настроек)")
-    p.add_argument("--install-schedule", action="store_true", help="добавить запуск по расписанию")
-    p.add_argument("--remove-schedule", action="store_true", help="убрать расписание")
+    p = argparse.ArgumentParser(description="JobHunter: autopilot")
+    p.add_argument("--skip-search", action="store_true", help="don't search, only score and prepare")
+    p.add_argument("--max-prepare", type=int, help="how many applications to prepare (default: from settings)")
+    p.add_argument("--install-schedule", action="store_true", help="add a scheduled run")
+    p.add_argument("--remove-schedule", action="store_true", help="remove the schedule")
     args = p.parse_args()
 
     if args.install_schedule:
         install_schedule(load_settings()["auto_times"])
-        print("Расписание установлено, следующий запуск:", schedule_info())
+        print("Schedule installed, next run:", schedule_info())
         return
     if args.remove_schedule:
         remove_schedule()
-        print("Расписание удалено")
+        print("Schedule removed")
         return
 
     handlers: list[logging.Handler] = [logging.FileHandler(LOG_PATH, encoding="utf-8")]
@@ -479,7 +475,7 @@ def main() -> None:
     for noisy in ("fontTools", "httpx", "anthropic", "urllib3"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     if not _acquire_lock():
-        log.warning("Автопилот уже работает — этот запуск пропущен")
+        log.warning("Autopilot is already running — this run is skipped")
         return
     try:
         run(args.skip_search, args.max_prepare)

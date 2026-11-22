@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 from ..models import Job
 from .base import Source, html_to_text
+from ..i18n import tr
 
 _REMOTE_RU = re.compile(r"удал[её]нн|удал[её]нк|remote|из любой (?:точки|страны)|full[- ]?remote|дистанционн", re.I)
 
@@ -25,7 +26,7 @@ def _stem_match(query: str, text: str) -> bool:
 
 class HabrCareerSource(Source):
     name = "habr"
-    title = "Habr Career (удалёнка)"
+    title = tr("Habr Career (remote)")
     API = "https://career.habr.com/api/frontend/vacancies"
     _details: dict[str, str] = {}
 
@@ -46,7 +47,7 @@ class HabrCareerSource(Source):
                 out.append(Job(
                     source=self.name, external_id=str(it["id"]), title=it.get("title", "").strip(),
                     company=(it.get("company") or {}).get("title", ""),
-                    location="Удалённо" + (f" · {cities}" if cities else ""),
+                    location="Remote" + (f" · {cities}" if cities else ""),
                     url=href, description=self._detail(href, it),
                     salary=(it.get("salary") or {}).get("formatted") or "",
                     posted=((it.get("publishedDate") or {}).get("date") or "")[:10],
@@ -68,7 +69,7 @@ class HabrCareerSource(Source):
             self.polite_pause(0.8, 1.8)
         except Exception:
             pass
-        text = (text + (f"\n\nНавыки: {skills}" if skills else "")).strip()
+        text = (text + (f"\n\nSkills: {skills}" if skills else "")).strip()
         self._details[href] = text
         return text
 
@@ -79,12 +80,12 @@ _VACANCY = re.compile(r"ваканси|ищем|требуется|обязан�
 
 class TelegramChannelsSource(Source):
     name = "telegram"
-    title = "Telegram-каналы с вакансиями"
+    title = tr("Telegram job channels")
     _posts: list[dict] | None = None
 
     def is_configured(self):
         if not self._channels():
-            return False, "не указаны каналы (Автопилот → настройки)"
+            return False, tr("no channels configured (Autopilot → settings)")
         return True, ""
 
     def _channels(self) -> list[str]:
@@ -125,7 +126,7 @@ class TelegramChannelsSource(Source):
             if len(text) < 150 or not _VACANCY.search(text) or not _stem_match(keywords, text):
                 continue
             lines = [re.sub(r"^[\W_]+", "", l).strip() for l in text.splitlines()]
-            title = next((l for l in lines if len(l) > 3), "Вакансия")[:120]
+            title = next((l for l in lines if len(l) > 3), "Job")[:120]
             m = re.search(r"(?:компания|company|работодатель)\s*[:—–-]\s*([^\n]{2,60})", text, re.I)
             company = m.group(1).strip() if m else ""
             # Remocate format: "Position at Company : https://…"
@@ -135,7 +136,7 @@ class TelegramChannelsSource(Source):
             out.append(Job(
                 source=self.name, external_id=p["post"], title=title,
                 company=company,
-                location=("Удалённо · " if _REMOTE_RU.search(text) else "") + f"Telegram @{channel}",
+                location=("Remote · " if _REMOTE_RU.search(text) else "") + f"Telegram @{channel}",
                 url=f"https://t.me/{p['post']}", description=text, posted=p["date"],
             ))
             if len(out) >= limit:

@@ -4,6 +4,7 @@ from __future__ import annotations
 from ..config import get_secret
 from ..models import Job
 from .base import Source, SourceError, html_to_text
+from ..i18n import tr
 
 
 class JoobleSource(Source):
@@ -12,20 +13,20 @@ class JoobleSource(Source):
 
     def is_configured(self):
         if not get_secret("JOOBLE_API_KEY"):
-            return False, "нет JOOBLE_API_KEY (Настройки → ключи)"
+            return False, tr("missing JOOBLE_API_KEY (Settings → keys)")
         return True, ""
 
     def search(self, keywords, location, limit):
         key = get_secret("JOOBLE_API_KEY")
         if not key:
-            raise SourceError("нет JOOBLE_API_KEY")
+            raise SourceError(tr("missing JOOBLE_API_KEY"))
         url = f"https://es.jooble.org/api/{key}"
         jobs: list[Job] = []
         page = 1
         while len(jobs) < limit and page <= 5:
             r = self.session.post(url, json={"keywords": keywords, "location": location, "page": str(page)}, timeout=30)
             if r.status_code in (401, 403):
-                raise SourceError(f"Jooble отклонил ключ (HTTP {r.status_code})")
+                raise SourceError(tr("Jooble rejected the key (HTTP {0})", r.status_code))
             r.raise_for_status()
             items = r.json().get("jobs", [])
             if not items:

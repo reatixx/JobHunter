@@ -63,8 +63,9 @@ run.bat                     :: abre la interfaz en http://localhost:8501
 Autopiloto manual: `.venv\Scripts\python.exe -m jobhunter.pipeline [--skip-search] [--max-prepare N]`,
 programación: `--install-schedule` / `--remove-schedule`.
 
-El código y los comentarios están en inglés. La interfaz y los prompts de los agentes están en ruso (mi idioma nativo);
-los CV y las cartas se generan en el idioma de la oferta (español o inglés).
+Interfaz bilingüe: inglés o ruso (mi idioma nativo), se elige en Ajustes (`ui_lang`). Los textos están en `locales/`,
+así que añadir otro idioma (por ejemplo, español) es crear un `locales/es.json`. Los agentes escriben sus explicaciones
+en el idioma de la interfaz; los CV y las cartas, en el idioma de la oferta (español o inglés).
 
 ## Cómo lo hice
 

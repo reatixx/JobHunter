@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from ..models import Job
 from .base import Source, html_to_text
+from ..i18n import tr
 
 
 def _matches(query: str, *texts: str) -> bool:
@@ -37,7 +38,7 @@ def _remote_loc(restriction) -> str:
 
 class RemotiveSource(Source):
     name = "remotive"
-    title = "Remotive (удалёнка, мир)"
+    title = tr("Remotive (remote, worldwide)")
 
     def search(self, keywords, location, limit):
         # the API search effectively ignores the query — fetch the feed and filter by words ourselves
@@ -56,7 +57,7 @@ class RemotiveSource(Source):
 
 class RemoteOKSource(Source):
     name = "remoteok"
-    title = "RemoteOK (удалёнка, мир)"
+    title = tr("RemoteOK (remote, worldwide)")
     _feed: list | None = None  # one feed download per run
 
     def search(self, keywords, location, limit):
@@ -83,7 +84,7 @@ class RemoteOKSource(Source):
 
 class HimalayasSource(Source):
     name = "himalayas"
-    title = "Himalayas (удалёнка, мир)"
+    title = tr("Himalayas (remote, worldwide)")
 
     def search(self, keywords, location, limit):
         out, offset = [], 0
@@ -113,7 +114,7 @@ class HimalayasSource(Source):
 
 class JobicySource(Source):
     name = "jobicy"
-    title = "Jobicy (удалёнка, мир)"
+    title = tr("Jobicy (remote, worldwide)")
 
     def search(self, keywords, location, limit):
         r = self.session.get("https://jobicy.com/api/v2/remote-jobs",
@@ -131,7 +132,7 @@ class JobicySource(Source):
 
 class ArbeitnowSource(Source):
     name = "arbeitnow"
-    title = "Arbeitnow (Европа, только удалённые)"
+    title = tr("Arbeitnow (Europe, remote only)")
     _feed: list | None = None
 
     def search(self, keywords, location, limit):

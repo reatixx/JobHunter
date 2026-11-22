@@ -10,6 +10,7 @@ from datetime import datetime
 
 from .config import DB_PATH
 from .models import Job
+from .i18n import tr
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -44,13 +45,13 @@ EXTRA_COLUMNS = {
 }
 
 STATUSES = {
-    "new": "🆕 Новая",
-    "ready": "📦 Готово к отправке",
-    "interesting": "⭐ Интересная",
-    "applied": "📨 Отправлено",
-    "interview": "🗣 Собеседование",
-    "rejected": "❌ Отказ",
-    "hidden": "🙈 Скрыта",
+    "new": tr("🆕 New"),
+    "ready": tr("📦 Ready to send"),
+    "interesting": tr("⭐ Interesting"),
+    "applied": tr("📨 Sent"),
+    "interview": tr("🗣 Interview"),
+    "rejected": tr("❌ Rejected"),
+    "hidden": tr("🙈 Hidden"),
 }
 
 

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv, set_key
+from .i18n import tr
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -19,14 +20,15 @@ load_dotenv(ENV_PATH, override=True)
 
 # Keys that can be set from the UI (stored only in the local .env)
 SECRET_KEYS = {
-    "ANTHROPIC_API_KEY": "Claude API (письма, анализ резюме)",
+    "ANTHROPIC_API_KEY": tr("Claude API (letters, resume analysis)"),
     "JOOBLE_API_KEY": "Jooble API — https://jooble.org/api/about",
     "INFOJOBS_CLIENT_ID": "InfoJobs client_id — https://developer.infojobs.net",
     "INFOJOBS_CLIENT_SECRET": "InfoJobs client_secret",
-    "TELEGRAM_BOT_TOKEN": "Telegram-бот — токен от @BotFather",
+    "TELEGRAM_BOT_TOKEN": tr("Telegram bot — token from @BotFather"),
 }
 
 DEFAULTS: dict = {
+    "ui_lang": "en",  # interface language: en / ru (locales/<lang>.json)
     "keywords": "",
     "location": "Madrid",
     "infojobs_province": "",          # e.g. "madrid", "barcelona"; empty = all of Spain

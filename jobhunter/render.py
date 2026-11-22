@@ -12,6 +12,7 @@ import docx
 from docx.shared import Pt, RGBColor
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
+from .i18n import tr
 
 HEADINGS = {
     "es": {"summary": "PERFIL PROFESIONAL", "skills": "COMPETENCIAS", "experience": "EXPERIENCIA PROFESIONAL",
@@ -53,7 +54,7 @@ class _PDF(FPDF):
                 self.add_font("Main", "B", str(FONT_DIR / bold))
                 self.add_font("Main", "I", str(FONT_DIR / italic))
                 return
-        raise RuntimeError("Не найден шрифт Calibri или Arial в C:/Windows/Fonts")
+        raise RuntimeError(tr("Calibri or Arial font not found in C:/Windows/Fonts"))
 
     def heading(self, text: str):
         self.ln(3)

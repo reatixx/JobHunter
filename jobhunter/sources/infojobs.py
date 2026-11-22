@@ -4,6 +4,7 @@ from __future__ import annotations
 from ..config import get_secret
 from ..models import Job
 from .base import Source, SourceError, html_to_text
+from ..i18n import tr
 
 API = "https://api.infojobs.net/api"
 
@@ -15,7 +16,7 @@ class InfoJobsSource(Source):
     def _auth(self):
         cid, secret = get_secret("INFOJOBS_CLIENT_ID"), get_secret("INFOJOBS_CLIENT_SECRET")
         if not cid or not secret:
-            raise SourceError("нет INFOJOBS_CLIENT_ID / INFOJOBS_CLIENT_SECRET")
+            raise SourceError(tr("missing INFOJOBS_CLIENT_ID / INFOJOBS_CLIENT_SECRET"))
         return cid, secret
 
     def is_configured(self):
@@ -23,12 +24,12 @@ class InfoJobsSource(Source):
             self._auth()
             return True, ""
         except SourceError as e:
-            return False, f"{e} (Настройки → ключи)"
+            return False, tr("{0} (Settings → keys)", e)
 
     def _get(self, path, params=None):
         r = self.session.get(f"{API}{path}", params=params, auth=self._auth(), timeout=30)
         if r.status_code in (401, 403):
-            raise SourceError(f"InfoJobs отклонил ключи (HTTP {r.status_code})")
+            raise SourceError(tr("InfoJobs rejected the keys (HTTP {0})", r.status_code))
         r.raise_for_status()
         return r.json()
 

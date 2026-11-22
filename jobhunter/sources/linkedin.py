@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 
 from ..models import Job
 from .base import Source, SourceError, html_to_text
+from ..i18n import tr
 
 SEARCH = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
 DETAIL = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{id}"
@@ -22,7 +23,7 @@ class LinkedInSource(Source):
 
     def _check(self, r):
         if r.status_code in (429, 999):
-            raise SourceError(f"LinkedIn временно ограничил запросы (HTTP {r.status_code}), попробуйте позже")
+            raise SourceError(tr("LinkedIn is temporarily rate-limiting requests (HTTP {0}), try later", r.status_code))
         r.raise_for_status()
 
     def search(self, keywords, location, limit):

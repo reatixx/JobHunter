@@ -11,6 +11,7 @@ from .linkedin import LinkedInSource
 from .manual import job_from_text, job_from_url
 from .remote import REMOTE_SOURCES
 from .russian import RU_SOURCES
+from ..i18n import tr
 
 SOURCES: dict[str, type[Source]] = {
     "linkedin": LinkedInSource,
@@ -43,19 +44,19 @@ def collect(settings: dict, keywords: str, location: str, names: list[str],
         src = SOURCES[name](settings)
         ok, why = src.is_configured()
         if not ok:
-            report[name] = f"пропущен: {why}"
+            report[name] = tr("skipped: {0}", why)
             on_progress(name, report[name])
             continue
-        on_progress(name, "ищу…")
+        on_progress(name, tr("searching…"))
         try:
             jobs = src.search(keywords, location, limit)
             jobs = [j for j in jobs if not any(w in j.title.lower() for w in excluded)]
             all_jobs += jobs
-            report[name] = f"найдено {len(jobs)}"
+            report[name] = tr("found {0}", len(jobs))
         except SourceError as e:
-            report[name] = f"ошибка: {e}"
+            report[name] = tr("error: {0}", e)
         except Exception as e:  # network error, unexpected response format
-            report[name] = f"ошибка: {type(e).__name__}: {e}"
+            report[name] = tr("error: {0}: {1}", type(e).__name__, e)
         on_progress(name, report[name])
     return all_jobs, report
 

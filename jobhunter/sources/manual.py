@@ -16,7 +16,7 @@ def _hid(s: str) -> str:
 
 
 def job_from_text(text: str, title: str = "", company: str = "", url: str = "") -> Job:
-    first_line = next((l.strip() for l in text.splitlines() if l.strip()), "Вакансия")
+    first_line = next((l.strip() for l in text.splitlines() if l.strip()), "Job")
     return Job(source="manual", external_id=_hid(url or text), title=title or first_line[:120],
                company=company, url=url, description=text.strip())
 

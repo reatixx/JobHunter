@@ -12,6 +12,7 @@ from datetime import datetime
 
 from . import db
 from .config import DATA_DIR
+from .i18n import tr
 
 FACTS_KEY = "facts"
 QA_KEY = "facts_qa"
@@ -20,20 +21,20 @@ MAX_OPEN_QUESTIONS = 12
 
 TRACKS = {
     "support": {
-        "name": "Поддержка",
+        "name": tr("Support"),
         "roles": ["Técnico de soporte IT", "Técnico de soporte N1/N2", "Helpdesk", "Soporte de aplicaciones",
                   "Atención al cliente técnico con ruso", "Técnico de sistemas junior"],
-        "focus": ("Трек «поддержка»: позиционируй кандидата как специалиста технической поддержки (soporte IT N1/N2, "
-                  "helpdesk, soporte de aplicaciones). На первый план: работа с заявками и инцидентами, доступы, "
-                  "диагностика, связь между пользователями и разработчиками, языки (русский родной + испанский). "
-                  "Веб-навыки (HTML/CSS и т.п.) — как дополнительный технический плюс, а не главное."),
+        "focus": ("Track «support»: position the candidate as a technical support specialist (soporte IT "
+                  "N1/N2, helpdesk, soporte de aplicaciones). Put first: handling tickets and incidents, "
+                  "access management, troubleshooting, liaising between users and developers, languages. Web "
+                  "skills (HTML/CSS, etc.) are an extra technical plus, not the main thing."),
     },
     "frontend": {
-        "name": "Фронтенд",
+        "name": tr("Frontend"),
         "roles": ["Desarrollador Frontend Junior", "Maquetador web HTML/CSS", "Desarrollador web junior"],
-        "focus": ("Трек «фронтенд»: позиционируй кандидата как junior-разработчика / верстальщика. На первый план: "
-                  "HTML, CSS, JavaScript, шаблоны, курсы и учебные проекты. Опыт поддержки — как понимание "
-                  "пользователей и продакшн-инцидентов."),
+        "focus": ("Track «frontend»: position the candidate as a junior developer / HTML-CSS developer. Put "
+                  "first: HTML, CSS, JavaScript, templates, courses and study projects. Support experience "
+                  "shows understanding of users and production incidents."),
     },
 }
 
@@ -61,8 +62,8 @@ def source_text(fallback_resume: str = "") -> str:
         return fallback_resume
     answered = [q for q in get_qa() if q["status"] == "answered"]
     if answered:
-        facts += "\n\n## Ответы кандидата на уточняющие вопросы (это проверенные факты)\n" + "\n".join(
-            f"- В: {q['q']}\n  О: {q['a']}" for q in answered)
+        facts += "\n\n## Candidate's answers to follow-up questions (these are verified facts)\n" + "\n".join(
+            f"- Q: {q['q']}\n  A: {q['a']}" for q in answered)
     return facts
 
 
@@ -158,5 +159,5 @@ def build_master(settings: dict, track: str) -> dict:
     pdf.write_bytes(to_pdf(rw["resume"], lang))
     rw["pdf"], rw["lang"] = str(pdf), lang
     db.kv_set(f"master_{track}", rw)
-    add_questions(rw["questions_for_user"], f"мастер-резюме: {TRACKS[track]['name']}")
+    add_questions(rw["questions_for_user"], tr("master resume: {0}", TRACKS[track]['name']))
     return rw
