@@ -103,7 +103,6 @@
  "Habr Career (remote)": "Habr Career (удалёнка)",
  "Hi! The bot is now bound to this chat. ": "Привет! Бот привязан к этому чату. ",
  "Himalayas (remote, worldwide)": "Himalayas (удалёнка, мир)",
- "I send the applications prepared by the JobHunter autopilot.\n\n/ready — show everything ready to send\n/questions — open questions for the resume\n/cv — rebuild the resumes from the fact base (support and frontend)\n/status — last autopilot run\n/run — run the autopilot now\n\nAnswer the agent's questions with a reply — the answer goes into the fact base.\nAny plain text (not a command) is a message for Claude; it will read it in its memory.\nUnder each letter there are buttons: ✅ Sent (marks the application), 🙈 Skip, ✏️ Edit letter.": "Я присылаю отклики, которые подготовил автопилот JobHunter.\n\n/ready — показать все готовые к отправке\n/questions — открытые вопросы для резюме\n/cv — пересобрать резюме по базе фактов (поддержка и фронтенд)\n/status — последний запуск автопилота\n/run — запустить автопилот сейчас\n\nНа вопросы агента отвечай реплаем — ответ попадёт в базу фактов.\nЛюбой обычный текст (не команда) — сообщение для Claude, он прочитает его в своей памяти.\nПод письмом кнопки: ✅ Отправил (отмечу отклик), 🙈 Пропустить, ✏️ Поправить письмо.",
  "Images in the PDF: {0}. A photo is fine, but the robot can't read skill charts and icons": "В PDF изображений: {0}. Фото допустимо, но графики навыков и иконки робот не прочтёт",
  "Importance": "Важность",
  "InfoJobs rejected the keys (HTTP {0})": "InfoJobs отклонил ключи (HTTP {0})",
@@ -365,5 +364,10 @@
  "🧾 Fact base": "🧾 База фактов",
  " (filtered out: {0})": " (отсеяно: {0})",
  "Basque required («{0}»)": "нужна эускера («{0}»)",
- "Filter out jobs that require Basque (euskera)": "Отсеивать вакансии с обязательной эускерой"
+ "Filter out jobs that require Basque (euskera)": "Отсеивать вакансии с обязательной эускерой",
+ "I send the applications prepared by the JobHunter autopilot.\n\n/ready — show everything ready to send\n/questions — open questions for the resume\n/cv — rebuild the resumes from the fact base (support and frontend)\n/queue — applications Claude will send\n/status — last autopilot run\n/run — run the autopilot now\n\nAnswer the agent's questions with a reply — the answer goes into the fact base.\nAny plain text (not a command) is a message for Claude; it will read it in its memory.\nUnder each letter there are buttons: ✅ Sent (marks the application), 🙈 Skip, ✏️ Edit letter.": "Я присылаю отклики, которые подготовил автопилот JobHunter.\n\n/ready — показать все готовые к отправке\n/questions — открытые вопросы для резюме\n/cv — пересобрать резюме по базе фактов (поддержка и фронтенд)\n/queue — отклики, которые отправит Claude\n/status — последний запуск автопилота\n/run — запустить автопилот сейчас\n\nНа вопросы агента отвечай реплаем — ответ попадёт в базу фактов.\nЛюбой обычный текст (не команда) — сообщение для Claude, он прочитает его в своей памяти.\nПод письмом кнопки: ✅ Отправил (отмечу отклик), 🙈 Пропустить, ✏️ Поправить письмо.",
+ "🤖 Claude, send it": "🤖 Отправит Claude",
+ "🤖 In Claude's queue ({0})": "🤖 В очереди Claude ({0})",
+ "Claude's queue is empty. Press «🤖 Claude, send it» under a letter to add one.": "Очередь Claude пуста. Нажми «🤖 Отправит Claude» под письмом, чтобы добавить отклик.",
+ "🤖 <b>Claude's queue</b> ({0}). Open a session and say «send the ready ones»:": "🤖 <b>Очередь Claude</b> ({0}). Открой сессию и скажи «отправь готовые»:"
 }

@@ -72,7 +72,8 @@ def buttons(rid: int) -> dict:
     return {"inline_keyboard": [
         [{"text": tr("✅ Sent"), "callback_data": f"ok:{rid}"},
          {"text": tr("🙈 Skip"), "callback_data": f"no:{rid}"}],
-        [{"text": tr("✏️ Edit letter"), "callback_data": f"ed:{rid}"}],
+        [{"text": tr("✏️ Edit letter"), "callback_data": f"ed:{rid}"},
+         {"text": tr("🤖 Claude, send it"), "callback_data": f"cq:{rid}"}],
     ]}
 
 
@@ -160,7 +161,7 @@ def notify_after_run(summary: dict) -> None:
 # --- command and button handling ------------------------------------------------------
 HELP = (tr("I send the applications prepared by the JobHunter autopilot.\n\n/ready — show everything ready to "
            "send\n/questions — open questions for the resume\n/cv — rebuild the resumes from the fact base "
-           "(support and frontend)\n/status — last autopilot run\n/run — run the autopilot now\n\nAnswer the "
+           "(support and frontend)\n/queue — applications Claude will send\n/status — last autopilot run\n/run — run the autopilot now\n\nAnswer the "
            "agent's questions with a reply — the answer goes into the fact base.\nAny plain text (not a "
            "command) is a message for Claude; it will read it in its memory.\nUnder each letter there are "
            "buttons: ✅ Sent (marks the application), 🙈 Skip, ✏️ Edit letter."))
@@ -221,6 +222,13 @@ def handle_message(msg: dict) -> None:
             send(tr("No applications ready."))
         for job in ready:
             send_application(job)
+    elif cmd == "/queue":
+        queued = [j for j in db.list_jobs(statuses=["ready"]) if j.get("queued_at")]
+        if not queued:
+            send(tr("Claude's queue is empty. Press «🤖 Claude, send it» under a letter to add one."))
+        else:
+            send(tr("🤖 <b>Claude's queue</b> ({0}). Open a session and say «send the ready ones»:", len(queued))
+                 + "\n" + "\n".join(f"• {e(j['title'])} — {e(j.get('company') or '')}" for j in queued))
     elif cmd == "/questions":
         if not send_questions(only_new=False):
             send(tr("No open questions 👍"))
@@ -316,6 +324,10 @@ def handle_callback(cb: dict) -> None:
     if action == "ok":
         db.update_job(job["id"], status="applied", applied_at=datetime.now().isoformat(timespec="seconds"))
         note = tr("✅ Marked: application sent")
+    elif action == "cq":
+        db.update_job(job["id"], queued_at=datetime.now().isoformat(timespec="seconds"))
+        n = sum(1 for j in db.list_jobs(statuses=["ready"]) if j.get("queued_at"))
+        note = tr("🤖 In Claude's queue ({0})", n)
     elif action == "no":
         db.update_job(job["id"], status="hidden")
         note = tr("🙈 Skipped")

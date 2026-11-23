@@ -42,6 +42,7 @@ EXTRA_COLUMNS = {
     "prepared_at": "TEXT",
     "applied_at": "TEXT",
     "notified_at": "TEXT",   # when the application was sent to Telegram
+    "queued_at": "TEXT",     # the user asked Claude to send this application (Telegram button)
 }
 
 STATUSES = {
