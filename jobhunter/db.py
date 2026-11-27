@@ -32,6 +32,15 @@ CREATE TABLE IF NOT EXISTS resume (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     text TEXT, profile TEXT, updated_at TEXT
 );
+-- what happened to each sent application: viewed, rejected, interview, reply…
+CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    at TEXT NOT NULL,
+    note TEXT DEFAULT '',
+    UNIQUE (job_id, kind)
+);
 """
 
 # Columns added after the first version: added to an existing database on connect
@@ -43,13 +52,20 @@ EXTRA_COLUMNS = {
     "applied_at": "TEXT",
     "notified_at": "TEXT",   # when the application was sent to Telegram
     "queued_at": "TEXT",     # the user asked Claude to send this application (Telegram button)
+    "channel": "TEXT",       # where the application was sent: linkedin, infojobs, company site…
 }
+
+# Application events, in funnel order. A later event moves the job status forward (never back).
+EVENT_KINDS = ("applied", "viewed", "reply", "interview", "offer", "rejected")
+EVENT_STATUS = {"applied": "applied", "viewed": "viewed", "reply": "viewed", "interview": "interview",
+                "offer": "interview", "rejected": "rejected"}
 
 STATUSES = {
     "new": tr("🆕 New"),
     "ready": tr("📦 Ready to send"),
     "interesting": tr("⭐ Interesting"),
     "applied": tr("📨 Sent"),
+    "viewed": tr("👀 Viewed"),
     "interview": tr("🗣 Interview"),
     "rejected": tr("❌ Rejected"),
     "hidden": tr("🙈 Hidden"),
@@ -203,3 +219,65 @@ def kv_set(key: str, value) -> None:
     with connect() as con:
         con.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                     (key, json.dumps(value, ensure_ascii=False)))
+
+
+# --- application tracking -------------------------------------------------------------
+_RANK = {"applied": 0, "viewed": 1, "interview": 2, "rejected": 3}
+
+
+def add_event(job_id: str, kind: str, at: str | None = None, note: str = "") -> bool:
+    """Records what happened to an application. Returns False if this event was already recorded."""
+    if kind not in EVENT_KINDS:
+        raise ValueError(f"unknown event kind: {kind}")
+    at = at or datetime.now().isoformat(timespec="seconds")
+    with connect() as con:
+        cur = con.execute("INSERT OR IGNORE INTO events (job_id, kind, at, note) VALUES (?,?,?,?)",
+                          (job_id, kind, at, note))
+        if not cur.rowcount:
+            return False
+        row = con.execute("SELECT status, applied_at FROM jobs WHERE id=?", (job_id,)).fetchone()
+        if row:
+            new = EVENT_STATUS[kind]
+            if _RANK.get(new, 0) >= _RANK.get(row["status"], -1):
+                con.execute("UPDATE jobs SET status=? WHERE id=?", (new, job_id))
+            if kind == "applied" and not row["applied_at"]:
+                con.execute("UPDATE jobs SET applied_at=? WHERE id=?", (at, job_id))
+    return True
+
+
+def add_application(company: str, title: str, channel: str, applied_at: str,
+                    url: str = "", location: str = "") -> str:
+    """An application sent outside the autopilot (by hand on a job site). Returns the job id."""
+    job = Job(source="manual", external_id=_norm(f"{company} {title}").replace(" ", "-")[:80],
+              title=title, company=company, location=location, url=url)
+    with connect() as con:
+        con.execute(
+            "INSERT OR IGNORE INTO jobs (id, source, external_id, title, company, location, url, dedup_key,"
+            " fetched_at, status, applied_at, channel) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (job.uid, job.source, job.external_id, title, company, location, url, dedup_key(job),
+             applied_at, "applied", applied_at, channel))
+    add_event(job.uid, "applied", applied_at)
+    return job.uid
+
+
+def find_applications(text: str) -> list[dict]:
+    """Sent applications whose company or title contains the text (for marking events by name)."""
+    needle = _norm(text)
+    with connect() as con:
+        rows = [dict(r) for r in con.execute(
+            "SELECT id, company, title, status, applied_at FROM jobs WHERE applied_at IS NOT NULL")]
+    return [r for r in rows if needle in _norm(f"{r['company']} {r['title']}")]
+
+
+def applications() -> list[dict]:
+    """All sent applications with their events: {..job, events: {kind: at}}."""
+    with connect() as con:
+        jobs = [dict(r) for r in con.execute(
+            "SELECT id, source, channel, title, company, location, status, applied_at FROM jobs"
+            " WHERE applied_at IS NOT NULL ORDER BY applied_at")]
+        ev: dict[str, dict] = {}
+        for r in con.execute("SELECT job_id, kind, at FROM events"):
+            ev.setdefault(r["job_id"], {})[r["kind"]] = r["at"]
+    for j in jobs:
+        j["events"] = ev.get(j["id"], {})
+    return jobs

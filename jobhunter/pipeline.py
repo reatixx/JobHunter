@@ -196,6 +196,25 @@ def basque_required(text: str) -> str:
     return ""
 
 
+# mandatory Catalan (auto_skip_catalan); same "valorable" logic as Basque
+_CATALAN = re.compile(r"catal[aá]n|catal[aà]|catalan|каталанск\w*", re.I)
+
+
+def catalan_required(text: str) -> str:
+    for m in _CATALAN.finditer(text):
+        start = max(text.rfind(c, 0, m.start()) for c in ".\n•;") + 1
+        ends = [i for i in (text.find(c, m.end()) for c in ".\n•;") if i != -1]
+        sent = text[start:min(ends) if ends else len(text)]
+        if not _BASQUE_OPTIONAL.search(sent):
+            return m.group(0)
+    return ""
+
+
+# Language named in the title is a hard requirement: "Helpdesk (catalán e inglés)", "Soporte con inglés",
+# "Customer Service - English Market". Russian in the title is welcome, so it is not checked here.
+_TITLE_ENGLISH = re.compile(r"ingl[eé]s|\benglish\b|английск", re.I)
+
+
 def filter_reason(job: dict, settings: dict) -> str:
     """Why the job should be filtered out right away, without a model call. Empty string = keep."""
     text = f"{job.get('title', '')}\n{job.get('description', '')}"
@@ -207,6 +226,11 @@ def filter_reason(job: dict, settings: dict) -> str:
         return tr("driving licence required («{0}»)", m)
     if settings.get("auto_skip_basque", True) and (m := basque_required(text)):
         return tr("Basque required («{0}»)", m)
+    if settings.get("auto_skip_catalan", True) and (m := catalan_required(text)):
+        return tr("Catalan required («{0}»)", m)
+    if settings.get("auto_skip_english_required") and (m := _TITLE_ENGLISH.search(job.get("title") or "")) \
+            and not _RUSSIAN.search(job.get("title") or ""):  # "Support with Russian and English" stays
+        return tr("English named in the title («{0}»)", m.group(0))
     if not region_ok(job.get("location") or "", settings):
         return tr("not open to candidates in Spain ({0})", job['location'].removeprefix('Remoto:').strip()[:60])
     if settings.get("skip_ru_by", True) and (m := ru_by_marker(job)):
@@ -216,7 +240,8 @@ def filter_reason(job: dict, settings: dict) -> str:
     if settings.get("auto_skip_english_required") and (m := english_required(text)):
         return tr("mandatory English: «{0}»", m)
     desc = job.get("description") or ""
-    lang = ad_language(desc) if len(desc) > 300 else "es"
+    # Jooble/aggregator snippets are ~270 chars: still enough to tell the language by stop words
+    lang = ad_language(desc) if len(desc) > 150 else "es"
     if lang not in ("es", "en", "ru"):
         return tr("job ad {0}", LANG_RU[lang])
     if settings.get("auto_skip_english_ads") and lang == "en" \

@@ -164,7 +164,8 @@ HELP = (tr("I send the applications prepared by the JobHunter autopilot.\n\n/rea
            "(support and frontend)\n/queue — applications Claude will send\n/status — last autopilot run\n/run — run the autopilot now\n\nAnswer the "
            "agent's questions with a reply — the answer goes into the fact base.\nAny plain text (not a "
            "command) is a message for Claude; it will read it in its memory.\nUnder each letter there are "
-           "buttons: ✅ Sent (marks the application), 🙈 Skip, ✏️ Edit letter."))
+           "buttons: ✅ Sent (marks the application), 🙈 Skip, ✏️ Edit letter.")
+        + "\n\n" + tr("/report — applications report: who answered, which sites work (comes by itself on Sunday evenings)"))
 
 
 def _run_pipeline() -> None:
@@ -229,6 +230,10 @@ def handle_message(msg: dict) -> None:
         else:
             send(tr("🤖 <b>Claude's queue</b> ({0}). Open a session and say «send the ready ones»:", len(queued))
                  + "\n" + "\n".join(f"• {e(j['title'])} — {e(j.get('company') or '')}" for j in queued))
+    elif cmd == "/report":
+        from .report import build
+        arg = text.split()[1] if len(text.split()) > 1 else ""
+        send(build(int(arg) if arg.isdigit() else 7))
     elif cmd == "/questions":
         if not send_questions(only_new=False):
             send(tr("No open questions 👍"))
@@ -343,6 +348,22 @@ def handle_callback(cb: dict) -> None:
          reply_markup={"inline_keyboard": [[{"text": note, "callback_data": "noop"}]]})
 
 
+REPORT_WEEKDAY, REPORT_HOUR = 6, 19  # Sunday, 19:00
+
+
+def weekly_report() -> None:
+    """Once a week (Sunday evening) sends the applications report; silent the rest of the time."""
+    now = datetime.now()
+    if now.weekday() != REPORT_WEEKDAY or now.hour < REPORT_HOUR or not load_settings().get("telegram_chat_id"):
+        return
+    week = "%d-W%02d" % now.isocalendar()[:2]
+    if db.kv_get("report_week") == week:
+        return
+    from .report import build
+    send(build(7))
+    db.kv_set("report_week", week)
+
+
 def poll_forever() -> None:
     offset = None
     call("setMyCommands", commands=[
@@ -350,6 +371,7 @@ def poll_forever() -> None:
         {"command": "questions", "description": tr("Questions for the resume")},
         {"command": "cv", "description": tr("Rebuild the resumes from the fact base")},
         {"command": "status", "description": tr("Last autopilot run")},
+        {"command": "report", "description": tr("Applications report (/report 30 — for 30 days)")},
         {"command": "run", "description": tr("Run the autopilot now")},
         {"command": "help", "description": tr("What the bot can do")},
     ])
@@ -362,6 +384,10 @@ def poll_forever() -> None:
             log.warning("getUpdates: %s", ex)
             time.sleep(10)
             continue
+        try:
+            weekly_report()
+        except Exception:
+            log.exception("Weekly report failed")
         for u in updates:
             offset = u["update_id"] + 1
             try:
